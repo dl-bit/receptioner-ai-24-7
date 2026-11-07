@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 import httpx
-from app.config import DOCTORS_CATALOG, settings
+from app.config import get_doctors_catalog, save_doctors_catalog, settings
 
 
 class CalComService:
@@ -12,8 +12,9 @@ class CalComService:
     Serviciu complet CRM & Programări conectat la Cal.com (Open-Source / Cloud Free Tier)
     sincronizat bidirecțional cu Google Calendar.
     Suportă:
+      - Orare individuale și zile lucrătoare per medic (din doctors.json sau interfața web)
+      - Event Type ID individual per medic în Cal.com (sau Event Type global)
       - Cal.com API v1 & v2 (Cloud + Self-Hosted Open-Source)
-      - Auto-detecție Event Types (nu necesită neapărat ID manual dacă există cheia API)
       - Verificare ore libere pe medici + filtrare Google Calendar Busy Slots
       - Creare programare în Cal.com + generare link direct Google Calendar
       - Anulare programare & Webhook receiver (BOOKING_CREATED / CANCELLED / RESCHEDULED)
@@ -110,6 +111,61 @@ class CalComService:
     def api_base(self) -> str:
         return (settings.calcom_api_url or "https://api.cal.com").rstrip("/")
 
+    def get_doctors(self) -> list[dict[str, Any]]:
+        return get_doctors_catalog()
+
+    def add_or_update_doctor(
+        self,
+        name: str,
+        specialty: str,
+        default_slots: list[str],
+        days: list[str] | None = None,
+        keywords: list[str] | None = None,
+        calcom_event_type_id: str = "",
+        doctor_id: str = "",
+    ) -> dict[str, Any]:
+        """Adaugă un medic nou sau actualizează calendarul/orarul unui medic existent."""
+        doctors = get_doctors_catalog()
+        clean_slots = sorted(
+            list({s.strip() for s in default_slots if re.match(r"^\d{2}:\d{2}$", s.strip())})
+        )
+        if not clean_slots:
+            clean_slots = ["09:00", "10:00", "11:30", "13:00", "15:00", "16:30"]
+
+        clean_days = days or ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+        slug_id = doctor_id.strip() or re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+        updated_doc = {
+            "id": slug_id,
+            "name": name.strip(),
+            "specialty": specialty.strip(),
+            "keywords": keywords or [w.lower() for w in specialty.split() if len(w) > 3],
+            "days": clean_days,
+            "default_slots": clean_slots,
+            "calcom_event_type_id": calcom_event_type_id.strip(),
+        }
+
+        replaced = False
+        for idx, doc in enumerate(doctors):
+            if doc["id"] == slug_id or doc["name"].lower() == name.strip().lower():
+                doctors[idx] = updated_doc
+                replaced = True
+                break
+
+        if not replaced:
+            doctors.append(updated_doc)
+
+        save_doctors_catalog(doctors)
+        return updated_doc
+
+    def delete_doctor(self, doctor_id: str) -> list[dict[str, Any]]:
+        doctors = get_doctors_catalog()
+        filtered = [d for d in doctors if d["id"] != doctor_id]
+        if filtered:
+            save_doctors_catalog(filtered)
+            return filtered
+        return doctors
+
     def _build_google_calendar_url(
         self,
         patient_name: str,
@@ -143,22 +199,42 @@ class CalComService:
         }
         return f"https://calendar.google.com/calendar/render?{urlencode(params)}"
 
+    def find_doctor_entry(
+        self, service: str = "", requested_doctor: str | None = None
+    ) -> dict[str, Any]:
+        """Găsește obiectul medicului potrivit din doctors.json."""
+        doctors = get_doctors_catalog()
+        if requested_doctor:
+            req_low = requested_doctor.lower()
+            for doc in doctors:
+                if any(
+                    part in req_low
+                    for part in doc["name"].lower().replace("dr.", "").split()
+                    if len(part) > 2
+                ):
+                    return doc
+
+        srv_low = (service or "").lower()
+        for doc in doctors:
+            for kw in doc.get("keywords", []):
+                if kw.lower() in srv_low:
+                    return doc
+
+        if any(k in srv_low for k in ["implant", "chirurg", "extrac", "măsea de minte"]):
+            for d in doctors:
+                if "chirurg" in d["specialty"].lower() or "implant" in d["specialty"].lower():
+                    return d
+        if any(k in srv_low for k in ["ortodon", "aparat", "copil", "copii", "pedodon"]):
+            for d in doctors:
+                if "ortodon" in d["specialty"].lower() or "copi" in d["specialty"].lower():
+                    return d
+
+        return doctors[0]
+
     def select_doctor_for_service(
         self, service: str, requested_doctor: str | None = None
     ) -> str:
-        """Selectează medicul potrivit în funcție de serviciul solicitat sau numele menționat."""
-        if requested_doctor:
-            req_low = requested_doctor.lower()
-            for doc in DOCTORS_CATALOG:
-                if any(part in req_low for part in doc["name"].lower().split()):
-                    return doc["name"]
-
-        srv_low = (service or "").lower()
-        if any(k in srv_low for k in ["implant", "chirurg", "extrac", "măsea de minte"]):
-            return "Dr. Andrei Ionescu"
-        if any(k in srv_low for k in ["ortodon", "aparat", "copil", "copii", "pedodon"]):
-            return "Dr. Mihai Radu"
-        return "Dr. Elena Dumitrescu"
+        return self.find_doctor_entry(service, requested_doctor)["name"]
 
     def get_all_appointments(self) -> list[dict[str, Any]]:
         active = [a for a in self.demo_appointments if a.get("status", "confirmed") != "cancelled"]
@@ -170,7 +246,7 @@ class CalComService:
     async def discover_event_types(self, api_key: str | None = None) -> list[dict[str, Any]]:
         """
         Interoghează Cal.com API (v1 și v2) pentru a descoperi automat tipurile de programări
-        (Event Types) din contul utilizatorului și a seta automat CALCOM_EVENT_TYPE_ID dacă lipsește.
+        (Event Types) din contul utilizatorului.
         """
         key = (api_key or settings.calcom_api_key or "").strip()
         if not key:
@@ -178,7 +254,6 @@ class CalComService:
 
         discovered: list[dict[str, Any]] = []
         async with httpx.AsyncClient(timeout=10.0) as client:
-            # Încercăm Cal.com API v1 (/v1/event-types?apiKey=...)
             try:
                 r1 = await client.get(
                     f"{self.api_base}/v1/event-types",
@@ -197,7 +272,6 @@ class CalComService:
             except Exception:
                 pass
 
-            # Dacă nu am găsit în v1, încercăm Cal.com API v2 (/v2/event-types cu Bearer token)
             if not discovered:
                 try:
                     r2 = await client.get(
@@ -231,7 +305,9 @@ class CalComService:
 
         return discovered
 
-    async def ensure_event_type_id(self) -> str:
+    async def ensure_event_type_id(self, doctor_entry: dict[str, Any] | None = None) -> str:
+        if doctor_entry and doctor_entry.get("calcom_event_type_id"):
+            return str(doctor_entry["calcom_event_type_id"])
         if settings.calcom_event_type_id:
             return str(settings.calcom_event_type_id)
         if settings.calcom_api_key:
@@ -248,22 +324,23 @@ class CalComService:
     ) -> dict[str, Any]:
         """
         Verifică intervalele orare libere ale medicilor în Cal.com (care filtrează automat
-        evenimentele ocupate din Google Calendar) + programările locale.
+        evenimentele ocupate din Google Calendar) + orarele individuale din doctors.json.
         """
-        selected_doctor = (
-            self.select_doctor_for_service(service or "", doctor)
+        doctors = get_doctors_catalog()
+        doctor_entry = (
+            self.find_doctor_entry(service or "", doctor)
             if (doctor or service)
             else None
         )
+        selected_doctor = doctor_entry["name"] if doctor_entry else None
 
-        event_type_id = await self.ensure_event_type_id()
+        event_type_id = await self.ensure_event_type_id(doctor_entry)
         calcom_live_slots: list[str] | None = None
 
         if settings.calcom_api_key and event_type_id:
             start_time = f"{date_str}T00:00:00Z"
             end_time = f"{date_str}T23:59:59Z"
             async with httpx.AsyncClient(timeout=10.0) as client:
-                # 1. Cal.com API v1 /slots
                 try:
                     params = {
                         "apiKey": settings.calcom_api_key,
@@ -282,7 +359,6 @@ class CalComService:
                 except Exception:
                     pass
 
-                # 2. Fallback la Cal.com API v2 /v2/slots/available
                 if calcom_live_slots is None:
                     try:
                         resp_v2 = await client.get(
@@ -307,7 +383,6 @@ class CalComService:
                     except Exception:
                         pass
 
-        # Orele deja ocupate în memoria locală / sincronizată
         booked_for_day = [
             appt
             for appt in self.get_all_appointments()
@@ -316,22 +391,33 @@ class CalComService:
         ]
         booked_times = {appt["time"] for appt in booked_for_day}
 
-        base_slots = calcom_live_slots if calcom_live_slots is not None else self.standard_slots
+        if calcom_live_slots is not None:
+            base_slots = calcom_live_slots
+        elif doctor_entry:
+            base_slots = doctor_entry.get("default_slots", self.standard_slots)
+        else:
+            # Reuniunea tuturor orelor medicilor activi
+            all_doc_slots: set[str] = set()
+            for d in doctors:
+                all_doc_slots.update(d.get("default_slots", []))
+            base_slots = sorted(list(all_doc_slots)) or self.standard_slots
+
         available = [slot for slot in base_slots if slot not in booked_times]
 
-        # Disponibilitate detaliată pe fiecare medic al clinicii
         doctors_schedule = []
-        for doc in DOCTORS_CATALOG:
+        for doc in doctors:
             doc_booked = {
                 appt["time"]
                 for appt in self.get_all_appointments()
                 if appt["date"] == date_str and appt.get("doctor") == doc["name"]
             }
-            doc_free = [s for s in doc["default_slots"] if s not in doc_booked]
+            doc_free = [s for s in doc.get("default_slots", []) if s not in doc_booked]
             doctors_schedule.append(
                 {
+                    "id": doc["id"],
                     "doctor": doc["name"],
                     "specialty": doc["specialty"],
+                    "calcom_event_type_id": doc.get("calcom_event_type_id", ""),
                     "available_slots": doc_free,
                     "occupied_slots": sorted(list(doc_booked)),
                 }
@@ -368,9 +454,9 @@ class CalComService:
         Creează o programare în Cal.com (sincronizată automat în Google Calendar-ul medicului)
         și o adaugă în panoul vizual live.
         """
-        assigned_doctor = self.select_doctor_for_service(service, doctor)
+        doctor_entry = self.find_doctor_entry(service, doctor)
+        assigned_doctor = doctor_entry["name"]
 
-        # Verificăm dacă ora este deja ocupată la acel medic
         for appt in self.get_all_appointments():
             if (
                 appt["date"] == date_str
@@ -387,12 +473,11 @@ class CalComService:
 
         calcom_booking_id = None
         calcom_synced = False
-        event_type_id = await self.ensure_event_type_id()
+        event_type_id = await self.ensure_event_type_id(doctor_entry)
 
         if settings.calcom_api_key and event_type_id:
             start_iso = f"{date_str}T{time_str}:00"
             async with httpx.AsyncClient(timeout=12.0) as client:
-                # 1. Cal.com API v1 POST /v1/bookings
                 try:
                     payload_v1 = {
                         "eventTypeId": int(event_type_id),
@@ -427,7 +512,6 @@ class CalComService:
                 except Exception:
                     pass
 
-                # 2. Fallback Cal.com API v2 POST /v2/bookings
                 if not calcom_synced:
                     try:
                         payload_v2 = {
@@ -523,7 +607,6 @@ class CalComService:
 
         found["status"] = "cancelled"
 
-        # Dacă este o programare Cal.com reală (CAL-...), o anulăm și în Cal.com API
         if found["id"].startswith("CAL-") and settings.calcom_api_key:
             raw_cal_id = found["id"].replace("CAL-", "")
             try:
@@ -587,8 +670,8 @@ class CalComService:
                         )
                         meta = b.get("metadata") or {}
                         phone = meta.get("phone", "Sincronizat Cal.com")
-                        doctor = meta.get("doctor", "Dr. Elena Dumitrescu")
                         service = meta.get("service") or b.get("title", "Consultație Cal.com")
+                        doctor = meta.get("doctor") or self.select_doctor_for_service(service)
 
                         self.demo_appointments.append(
                             {
@@ -654,7 +737,6 @@ class CalComService:
             service = data.get("title", "Consultație Cal.com")
             doctor = self.select_doctor_for_service(service)
 
-            # Evităm duplicatele la reschedule
             self.demo_appointments = [a for a in self.demo_appointments if a["id"] != cal_id]
             self.demo_appointments.append(
                 {
@@ -691,10 +773,6 @@ class CalComService:
         api_url: str = "https://api.cal.com",
         timezone: str = "Europe/Bucharest",
     ) -> dict[str, Any]:
-        """
-        Salvează configurația Cal.com în memorie și în fișierul .env, detectează automat
-        Event Types din Cal.com și sincronizează programările.
-        """
         settings.calcom_api_key = api_key.strip()
         settings.calcom_api_url = (api_url or "https://api.cal.com").strip().rstrip("/")
         settings.calcom_timezone = (timezone or "Europe/Bucharest").strip()
@@ -705,7 +783,6 @@ class CalComService:
         if not settings.calcom_event_type_id and discovered:
             settings.calcom_event_type_id = str(discovered[0]["id"])
 
-        # Persistăm în fișierul .env local
         self._persist_to_env_file(
             {
                 "CALCOM_API_URL": settings.calcom_api_url,

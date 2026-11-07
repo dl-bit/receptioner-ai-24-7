@@ -154,9 +154,12 @@
               Verificare ore libere medici & sincronizare bidirecțională
             </p>
           </div>
-          <div class="flex items-center gap-1.5">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <button onclick="toggleDoctorsModal()" class="text-xs px-2.5 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 font-medium transition">
+              👨‍⚕️ Medici & Orare
+            </button>
             <button onclick="toggleCalModal()" class="text-xs px-2.5 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 font-medium transition">
-              ⚙️ Configurare Cal.com
+              ⚙️ Cal.com API
             </button>
             <button onclick="syncWithCalCom()" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition" title="Sincronizează cu Cal.com API">
               🔄 Sync
@@ -168,9 +171,6 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
           <select id="doctorFilter" onchange="loadAppointments()" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500">
             <option value="">👨‍⚕️ Toți medicii clinicii</option>
-            <option value="Dr. Elena Dumitrescu">Dr. Elena Dumitrescu (Stomatologie / Estetică)</option>
-            <option value="Dr. Andrei Ionescu">Dr. Andrei Ionescu (Chirurgie / Implantologie)</option>
-            <option value="Dr. Mihai Radu">Dr. Mihai Radu (Ortodonție / Copii)</option>
           </select>
           <input
             type="date"
@@ -225,6 +225,64 @@
     </section>
 
   </main>
+
+  <!-- Modal Administrare Medici & Orare (doctors.json + Cal.com Event Type per Medic) -->
+  <div id="doctorsModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            👨‍⚕️ Administrare Medici, Orare & Calendare Cal.com
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Adaugă medici noi sau modifică orele libere și Event Type-ul Cal.com al fiecărui medic (salvat în <code>doctors.json</code>)
+          </p>
+        </div>
+        <button onclick="toggleDoctorsModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+
+      <!-- Lista Medicilor Existenți -->
+      <div class="space-y-2" id="doctorsManagerList">
+        <!-- Populated by JS -->
+      </div>
+
+      <!-- Formular Adăugare / Modificare Medic -->
+      <form onsubmit="saveDoctorForm(event)" class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3 text-xs">
+        <div class="font-semibold text-emerald-400" id="docFormTitle">➕ Adaugă Medic Nou sau Selectează unul de mai sus pentru Editare</div>
+        <input type="hidden" id="docIdInput" value="" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 mb-1">Nume Medic:</label>
+            <input type="text" id="docNameInput" placeholder="Ex: Dr. Maria Vasilescu" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500" />
+          </div>
+          <div>
+            <label class="block text-slate-300 mb-1">Specialitate & Servicii:</label>
+            <input type="text" id="docSpecInput" placeholder="Ex: Parodontologie & Laser" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="sm:col-span-2">
+            <label class="block text-slate-300 mb-1">Ore disponibile în calendar (separate prin virgulă, format HH:MM):</label>
+            <input type="text" id="docSlotsInput" value="09:00, 10:30, 12:00, 14:00, 15:30, 17:00" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
+          </div>
+          <div>
+            <label class="block text-slate-300 mb-1">Cal.com Event Type ID (Opțional):</label>
+            <input type="text" id="docCalIdInput" placeholder="Ex: 123456" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-1">
+          <button type="button" onclick="clearDoctorForm()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300">
+            Resetează Formular
+          </button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition">
+            💾 Salvează Medic & Orar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Modal Configurare Cal.com + Google Calendar -->
   <div id="calModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
@@ -309,6 +367,7 @@
     let mediaRecorder = null;
     let audioChunks = [];
     let isRecording = false;
+    let cachedDoctors = [];
 
     window.addEventListener("DOMContentLoaded", () => {
       const origin = window.location.origin;
@@ -319,6 +378,118 @@
       checkSystemHealth();
       loadAppointments();
     });
+
+    function toggleDoctorsModal() {
+      const modal = document.getElementById("doctorsModal");
+      if (modal.classList.contains("hidden")) {
+        renderDoctorsManager();
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+      } else {
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+      }
+    }
+
+    function populateDoctorsDropdown(doctors) {
+      cachedDoctors = doctors || [];
+      const select = document.getElementById("doctorFilter");
+      const currentVal = select.value;
+      select.innerHTML = `<option value="">👨‍⚕️ Toți medicii clinicii (${cachedDoctors.length})</option>`;
+      cachedDoctors.forEach(doc => {
+        const opt = document.createElement("option");
+        opt.value = doc.name;
+        opt.textContent = `${doc.name} (${doc.specialty})`;
+        select.appendChild(opt);
+      });
+      select.value = currentVal;
+    }
+
+    function renderDoctorsManager() {
+      const list = document.getElementById("doctorsManagerList");
+      list.innerHTML = "";
+      cachedDoctors.forEach(doc => {
+        const div = document.createElement("div");
+        div.className = "p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs";
+        const slotsStr = (doc.default_slots || []).join(", ");
+        const calBadge = doc.calcom_event_type_id
+          ? `<span class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">Cal.com #${doc.calcom_event_type_id}</span>`
+          : "";
+        div.innerHTML = `
+          <div>
+            <div class="font-semibold text-white flex items-center gap-2">
+              <span>👨‍⚕️ ${doc.name}</span>
+              <span class="text-slate-400 font-normal">• ${doc.specialty}</span>
+              ${calBadge}
+            </div>
+            <div class="text-slate-400 font-mono mt-1">Ore: ${slotsStr}</div>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button onclick="editDoctor('${doc.id}')" class="px-2.5 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30">
+              ✏️ Editează Orar
+            </button>
+            <button onclick="removeDoctor('${doc.id}')" class="px-2.5 py-1 rounded-lg bg-rose-600/15 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30">
+              🗑️ Șterge
+            </button>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function editDoctor(docId) {
+      const doc = cachedDoctors.find(d => d.id === docId);
+      if (!doc) return;
+      document.getElementById("docFormTitle").textContent = `✏️ Editare Medic & Calendar: ${doc.name}`;
+      document.getElementById("docIdInput").value = doc.id;
+      document.getElementById("docNameInput").value = doc.name;
+      document.getElementById("docSpecInput").value = doc.specialty;
+      document.getElementById("docSlotsInput").value = (doc.default_slots || []).join(", ");
+      document.getElementById("docCalIdInput").value = doc.calcom_event_type_id || "";
+    }
+
+    function clearDoctorForm() {
+      document.getElementById("docFormTitle").textContent = "➕ Adaugă Medic Nou în Clinică";
+      document.getElementById("docIdInput").value = "";
+      document.getElementById("docNameInput").value = "";
+      document.getElementById("docSpecInput").value = "";
+      document.getElementById("docSlotsInput").value = "09:00, 10:30, 12:00, 14:00, 15:30, 17:00";
+      document.getElementById("docCalIdInput").value = "";
+    }
+
+    async function saveDoctorForm(e) {
+      e.preventDefault();
+      const id = document.getElementById("docIdInput").value.trim();
+      const name = document.getElementById("docNameInput").value.trim();
+      const specialty = document.getElementById("docSpecInput").value.trim();
+      const rawSlots = document.getElementById("docSlotsInput").value.split(",").map(s => s.trim()).filter(Boolean);
+      const calId = document.getElementById("docCalIdInput").value.trim();
+
+      const res = await fetch("/api/doctors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: id,
+          name: name,
+          specialty: specialty,
+          default_slots: rawSlots,
+          calcom_event_type_id: calId
+        })
+      });
+      const data = await res.json();
+      populateDoctorsDropdown(data.doctors || []);
+      renderDoctorsManager();
+      clearDoctorForm();
+      await loadAppointments();
+    }
+
+    async function removeDoctor(docId) {
+      const res = await fetch(`/api/doctors/${encodeURIComponent(docId)}`, { method: "DELETE" });
+      const data = await res.json();
+      populateDoctorsDropdown(data.doctors || []);
+      renderDoctorsManager();
+      await loadAppointments();
+    }
 
     function toggleCalModal() {
       const modal = document.getElementById("calModal");
@@ -398,6 +569,7 @@
         const res = await fetch("/api/health");
         const data = await res.json();
         document.getElementById("clinicTitle").textContent = data.clinic_name;
+        populateDoctorsDropdown(data.doctors || []);
 
         const dateInput = document.getElementById("dateFilter");
         if (!dateInput.value && data.tomorrow_date) {
@@ -436,6 +608,9 @@
 
         const res = await fetch(`/api/appointments?${params.toString()}`);
         const data = await res.json();
+        if (data.doctors) {
+          populateDoctorsDropdown(data.doctors);
+        }
         renderAppointments(data.appointments || []);
         if (data.availability) {
           document.getElementById("tomorrowDateLabel").textContent = data.availability.date;

@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from app.config import DOCTORS_CATALOG, settings
+from app.config import get_doctors_catalog, settings
 from app.services.cal_service import cal_service
 from app.services.llm_agent import receptionist_agent
 from app.services.storage_service import storage_service
@@ -21,7 +21,7 @@ app = FastAPI(
         "Arhitectură Distribuită Zero-Cost pe Hugging Face Spaces (16 GB RAM) + "
         "Groq Whisper/LLM + Edge-TTS Română + Cal.com (Google Calendar Sync) + Qdrant/Supabase"
     ),
-    version="1.1.0",
+    version="1.2.0",
 )
 
 app.add_middleware(
@@ -63,6 +63,15 @@ class CalComConfigRequest(BaseModel):
     timezone: str = "Europe/Bucharest"
 
 
+class DoctorSaveRequest(BaseModel):
+    id: str = ""
+    name: str
+    specialty: str
+    default_slots: list[str]
+    days: list[str] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    calcom_event_type_id: str = ""
+
+
 # ============================================================================
 # 1. HEALTHCHECK & KEEP-ALIVE (Pentru UptimeRobot / cron-job.org la 10 minute)
 # ============================================================================
@@ -83,7 +92,7 @@ async def health_check() -> dict[str, Any]:
         "supabase_configured": bool(settings.supabase_url),
         "default_voice": settings.default_tts_voice,
         "supported_voices": tts_service.SUPPORTED_VOICES,
-        "doctors": DOCTORS_CATALOG,
+        "doctors": get_doctors_catalog(),
         "tomorrow_date": tomorrow,
     }
 
@@ -178,8 +187,39 @@ async def tts_endpoint(req: TTSRequest) -> Response:
 
 
 # ============================================================================
-# 4. CALENDAR & PROGRAMĂRI LIVE (Cal.com Open-Source + Google Calendar Sync)
+# 4. CALENDAR, MEDICI & PROGRAMĂRI LIVE (Cal.com + Google Calendar Sync)
 # ============================================================================
+@app.get("/api/doctors")
+async def list_doctors_endpoint() -> dict[str, Any]:
+    return {"doctors": get_doctors_catalog()}
+
+
+@app.post("/api/doctors")
+async def save_doctor_endpoint(req: DoctorSaveRequest) -> dict[str, Any]:
+    saved = cal_service.add_or_update_doctor(
+        name=req.name,
+        specialty=req.specialty,
+        default_slots=req.default_slots,
+        days=req.days,
+        calcom_event_type_id=req.calcom_event_type_id,
+        doctor_id=req.id,
+    )
+    # Resetăm sesiunile active astfel încât promptul de sistem al AI-ului să preia imediat noul medic
+    receptionist_agent.sessions.clear()
+    return {
+        "status": "saved",
+        "doctor": saved,
+        "doctors": get_doctors_catalog(),
+    }
+
+
+@app.delete("/api/doctors/{doctor_id}")
+async def delete_doctor_endpoint(doctor_id: str) -> dict[str, Any]:
+    doctors = cal_service.delete_doctor(doctor_id)
+    receptionist_agent.sessions.clear()
+    return {"status": "deleted", "doctors": doctors}
+
+
 @app.get("/api/appointments")
 async def list_appointments(
     date: str | None = None,
@@ -190,7 +230,7 @@ async def list_appointments(
     return {
         "appointments": cal_service.get_all_appointments(),
         "availability": avail,
-        "doctors": DOCTORS_CATALOG,
+        "doctors": get_doctors_catalog(),
         "calcom_configured": bool(settings.calcom_api_key),
         "calcom_event_type_id": settings.calcom_event_type_id,
         "audit_logs": storage_service.audit_logs[:15],
@@ -235,7 +275,7 @@ async def get_calcom_status() -> dict[str, Any]:
         "event_type_id": settings.calcom_event_type_id,
         "timezone": settings.calcom_timezone,
         "event_types": event_types,
-        "doctors": DOCTORS_CATALOG,
+        "doctors": get_doctors_catalog(),
     }
 
 

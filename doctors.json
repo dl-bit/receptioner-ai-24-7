@@ -1,0 +1,29 @@
+[
+  {
+    "id": "dr-elena",
+    "name": "Dr. Elena Dumitrescu",
+    "specialty": "Stomatologie Generală, Estetică & Endodonție",
+    "keywords": ["consultație", "consultatie", "detartraj", "albire", "plombă", "plomba", "endodonție", "canal", "carie"],
+    "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+    "default_slots": ["09:00", "10:00", "11:30", "13:00", "15:00", "16:30", "18:00"],
+    "calcom_event_type_id": ""
+  },
+  {
+    "id": "dr-andrei",
+    "name": "Dr. Andrei Ionescu",
+    "specialty": "Chirurgie Dento-Alveolară & Implantologie",
+    "keywords": ["implant", "chirurg", "extracție", "extractie", "măsea de minte", "operatie"],
+    "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+    "default_slots": ["09:00", "10:30", "12:00", "14:00", "15:00", "16:30", "18:00"],
+    "calcom_event_type_id": ""
+  },
+  {
+    "id": "dr-mihai",
+    "name": "Dr. Mihai Radu",
+    "specialty": "Ortodonție & Pedodonție (Copii)",
+    "keywords": ["ortodonție", "ortodontie", "aparat", "copil", "copii", "pedodonție"],
+    "days": ["Monday", "Wednesday", "Friday", "Saturday"],
+    "default_slots": ["09:00", "10:00", "11:30", "13:00", "15:00", "16:30"],
+    "calcom_event_type_id": ""
+  }
+]

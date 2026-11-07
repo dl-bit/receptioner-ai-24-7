@@ -1,4 +1,7 @@
+import json
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -47,29 +50,61 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-DOCTORS_CATALOG = [
+DOCTORS_FILE = Path("doctors.json")
+
+DEFAULT_DOCTORS: list[dict[str, Any]] = [
     {
         "id": "dr-elena",
         "name": "Dr. Elena Dumitrescu",
         "specialty": "Stomatologie Generală, Estetică & Endodonție",
+        "keywords": ["consultație", "consultatie", "detartraj", "albire", "plombă", "endodonție"],
         "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
         "default_slots": ["09:00", "10:00", "11:30", "13:00", "15:00", "16:30", "18:00"],
+        "calcom_event_type_id": "",
     },
     {
         "id": "dr-andrei",
         "name": "Dr. Andrei Ionescu",
         "specialty": "Chirurgie Dento-Alveolară & Implantologie",
+        "keywords": ["implant", "chirurg", "extracție", "extractie", "măsea de minte"],
         "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
         "default_slots": ["09:00", "10:30", "12:00", "14:00", "15:00", "16:30", "18:00"],
+        "calcom_event_type_id": "",
     },
     {
         "id": "dr-mihai",
         "name": "Dr. Mihai Radu",
         "specialty": "Ortodonție & Pedodonție (Copii)",
+        "keywords": ["ortodonție", "ortodontie", "aparat", "copil", "copii", "pedodonție"],
         "days": ["Monday", "Wednesday", "Friday", "Saturday"],
         "default_slots": ["09:00", "10:00", "11:30", "13:00", "15:00", "16:30"],
+        "calcom_event_type_id": "",
     },
 ]
+
+
+def get_doctors_catalog() -> list[dict[str, Any]]:
+    """Citește lista medicilor și orarele lor din doctors.json."""
+    if DOCTORS_FILE.exists():
+        try:
+            data = json.loads(DOCTORS_FILE.read_text(encoding="utf-8"))
+            if isinstance(data, list) and data:
+                return data
+        except Exception:
+            pass
+    return [dict(d) for d in DEFAULT_DOCTORS]
+
+
+def save_doctors_catalog(doctors: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Salvează lista medicilor și orarele lor în doctors.json."""
+    DOCTORS_FILE.write_text(
+        json.dumps(doctors, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    return doctors
+
+
+DOCTORS_CATALOG = get_doctors_catalog()
 
 DEFAULT_CLINIC_KNOWLEDGE = [
     {
@@ -119,9 +154,14 @@ DEFAULT_CLINIC_KNOWLEDGE = [
 
 def get_system_prompt() -> str:
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M (%A)")
-    tomorrow_str = (datetime.now()).strftime("%Y-%m-%d")
+    doctors = get_doctors_catalog()
+    doctors_summary = "; ".join(
+        f"{d['name']} ({d['specialty']} - ore: {', '.join(d.get('default_slots', []))})"
+        for d in doctors
+    )
     return f"""Ești recepționerul virtual AI (24/7) al „{settings.clinic_name}”, conectat la sistemul de programări Cal.com sincronizat cu Google Calendar.
 Data și ora curentă: {now_str}.
+Medicii activi în clinică: {doctors_summary}.
 
 REGULI DE COMUNICARE (FOARTE IMPORTANT PENTRU VOCE ȘI WHATSAPP):
 1. Vorbești EXCLUSIV într-o limbă română naturală, caldă, politicoasă și profesionistă.
