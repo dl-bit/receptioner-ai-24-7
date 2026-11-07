@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Recepționer & Call-Center AI 24/7 (Voce + WhatsApp)</title>
+  <title>Recepționer & Call-Center AI 24/7 (Voce + WhatsApp + Cal.com)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @keyframes pulse-ring {
@@ -33,14 +33,17 @@
             </span>
           </div>
           <p class="text-xs text-slate-400">
-            Stack: WebRTC Voice • Groq Whisper • Edge-TTS Română (0 €) • Cal.com • Qdrant & Supabase
+            Stack: WebRTC Voice • Groq Whisper & LLM • Edge-TTS Română (0 €) • Cal.com + Google Calendar Sync
           </p>
         </div>
       </div>
 
-      <div class="flex items-center gap-2 text-xs">
+      <div class="flex flex-wrap items-center gap-2 text-xs">
         <span id="llmBadge" class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">
           Mod: Verificare...
+        </span>
+        <span id="calcomBadge" onclick="toggleCalModal()" class="cursor-pointer px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:border-blue-500 transition">
+          📅 Cal.com: Verificare...
         </span>
         <select id="voiceSelector" class="bg-slate-800 border border-slate-700 text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500">
           <option value="ro-RO-AlinaNeural">🔊 Voce: Alina (Feminin RO)</option>
@@ -55,7 +58,7 @@
 
   <!-- EU AI Act Art. 50 Transparency Notice -->
   <div class="bg-indigo-950/60 border-b border-indigo-800/50 text-indigo-200 text-xs py-1.5 px-4 text-center">
-    🛡️ <strong>Conformitate EU AI Act (Art. 50):</strong> Interacționați cu un sistem automatizat de Inteligență Artificială. Toate programările sunt sincronizate în timp real.
+    🛡️ <strong>Conformitate EU AI Act (Art. 50):</strong> Interacționați cu un sistem automatizat de Inteligență Artificială. Toate programările sunt sincronizate cu Cal.com & Google Calendar.
   </div>
 
   <!-- Main Content Grid -->
@@ -70,7 +73,7 @@
             <span>Vorbește în Română cu Recepționerul AI</span>
           </h2>
           <p id="voiceStatusText" class="text-xs text-slate-400 mt-0.5">
-            Apasă pe microfon și spune: „Bună ziua, aveți liber mâine după ora 14:00 pentru un consult?”
+            Apasă pe microfon și spune: „Bună ziua, ce ore libere are Dr. Elena Dumitrescu mâine?”
           </p>
         </div>
 
@@ -88,26 +91,26 @@
 
       <!-- Quick Scenario Prompts for Demo -->
       <div class="px-4 py-2.5 bg-slate-950/60 border-b border-slate-800 flex flex-wrap gap-1.5 items-center">
-        <span class="text-[11px] text-slate-400 mr-1">Scenarii rapide Demo:</span>
+        <span class="text-[11px] text-slate-400 mr-1">Scenarii rapide Cal.com:</span>
         <button onclick="sendQuickPrompt('Bună ziua! Ce ore libere aveți mâine pentru o consultație?')" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 hover:bg-blue-600/30 hover:border-blue-500/50 border border-slate-700 text-slate-200 transition">
           📅 Verifică ore libere mâine
         </button>
-        <button onclick="sendQuickPrompt('Vreau să mă programez mâine la ora 16:30 pe numele Popescu Vlad, telefon 0722999888')" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 hover:bg-emerald-600/30 hover:border-emerald-500/50 border border-slate-700 text-slate-200 transition">
-          ✅ Programează-mă mâine la 16:30
+        <button onclick="sendQuickPrompt('Vreau să mă programez mâine la ora 16:30 la Dr. Elena Dumitrescu pentru detartraj, pe numele Popescu Vlad, telefon 0722999888')" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 hover:bg-emerald-600/30 hover:border-emerald-500/50 border border-slate-700 text-slate-200 transition">
+          ✅ Programează mâine la 16:30
         </button>
-        <button onclick="sendQuickPrompt('Cât costă o consultație și un detartraj cu AirFlow? Acceptați plata în rate?')" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 hover:bg-purple-600/30 hover:border-purple-500/50 border border-slate-700 text-slate-200 transition">
-          💳 Prețuri & Plată în rate
+        <button onclick="sendQuickPrompt('Cât costă un implant dentar la Dr. Andrei Ionescu și acceptați plata în rate?')" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 hover:bg-purple-600/30 hover:border-purple-500/50 border border-slate-700 text-slate-200 transition">
+          🦷 Implant & Plată în rate
         </button>
       </div>
 
       <!-- Chat Messages Container -->
-      <div id="chatContainer" class="flex-1 p-4 space-y-4 overflow-y-auto max-h-[430px] min-h-[340px]">
+      <div id="chatContainer" class="flex-1 p-4 space-y-4 overflow-y-auto max-h-[450px] min-h-[350px]">
         <div class="flex items-start gap-3">
           <div class="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-sm">
             🤖
           </div>
           <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%] text-sm text-slate-200">
-            Bună ziua! Sunt asistentul virtual AI al <strong>Clinicii Stomatologice Demo Smile</strong>. Vă pot ajuta 24/7 cu programări în timp real, verificarea orelor libere sau informații despre tarife și medici. Puteți apăsa pe microfonul de mai sus sau îmi puteți scrie direct aici!
+            Bună ziua! Sunt asistentul virtual AI al <strong>Clinicii Stomatologice Demo Smile</strong>, conectat la sistemul de programări <strong>Cal.com & Google Calendar</strong>. Vă pot verifica instantaneu orele libere ale medicilor și vă pot înregistra programarea. Apăsați pe microfon sau scrieți-mi mai jos!
           </div>
         </div>
       </div>
@@ -142,25 +145,46 @@
 
       <!-- Live Calendar & Slots Card -->
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div>
             <h3 class="font-semibold text-white text-base flex items-center gap-2">
-              📅 Calendar Programări Live (Cal.com Sync)
+              📅 CRM & Calendar (Cal.com + Google Calendar)
             </h3>
-            <p class="text-xs text-slate-400">
-              Se actualizează instantaneu când agentul AI face o programare
+            <p id="providerSubtitle" class="text-xs text-slate-400">
+              Verificare ore libere medici & sincronizare bidirecțională
             </p>
           </div>
-          <button onclick="loadAppointments()" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300">
-            🔄 Refresh
-          </button>
+          <div class="flex items-center gap-1.5">
+            <button onclick="toggleCalModal()" class="text-xs px-2.5 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 font-medium transition">
+              ⚙️ Configurare Cal.com
+            </button>
+            <button onclick="syncWithCalCom()" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition" title="Sincronizează cu Cal.com API">
+              🔄 Sync
+            </button>
+          </div>
         </div>
 
-        <!-- Available Slots Badges for Tomorrow -->
+        <!-- Doctor & Date Filter Bar -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+          <select id="doctorFilter" onchange="loadAppointments()" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500">
+            <option value="">👨‍⚕️ Toți medicii clinicii</option>
+            <option value="Dr. Elena Dumitrescu">Dr. Elena Dumitrescu (Stomatologie / Estetică)</option>
+            <option value="Dr. Andrei Ionescu">Dr. Andrei Ionescu (Chirurgie / Implantologie)</option>
+            <option value="Dr. Mihai Radu">Dr. Mihai Radu (Ortodonție / Copii)</option>
+          </select>
+          <input
+            type="date"
+            id="dateFilter"
+            onchange="loadAppointments()"
+            class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+          />
+        </div>
+
+        <!-- Available Slots Badges -->
         <div class="mb-4 p-3 rounded-xl bg-slate-950/80 border border-slate-800">
           <div class="text-xs text-slate-400 mb-2 flex items-center justify-between">
-            <span>Ore libere pentru mâine (<strong id="tomorrowDateLabel" class="text-slate-200">-</strong>):</span>
-            <span class="text-[11px] text-emerald-400">● Disponibil</span>
+            <span>Ore libere pe <strong id="tomorrowDateLabel" class="text-slate-200">-</strong>:</span>
+            <span class="text-[11px] text-emerald-400">● Click pe o oră pt. programare rapidă</span>
           </div>
           <div id="availableSlotsContainer" class="flex flex-wrap gap-1.5">
             <!-- Populated by JS -->
@@ -168,7 +192,11 @@
         </div>
 
         <!-- Booked Appointments List -->
-        <div class="space-y-2.5 max-h-[250px] overflow-y-auto pr-1" id="appointmentsList">
+        <div class="flex items-center justify-between text-xs text-slate-400 mb-2">
+          <span>Programări active înregistrate:</span>
+          <span id="totalBookingsCount" class="font-mono text-slate-300">0</span>
+        </div>
+        <div class="space-y-2.5 max-h-[260px] overflow-y-auto pr-1" id="appointmentsList">
           <!-- Populated by JS -->
         </div>
       </div>
@@ -176,20 +204,20 @@
       <!-- Omnichannel & Hugging Face Zero-Cost Architecture Card -->
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
         <h3 class="font-semibold text-white text-sm flex items-center gap-2">
-          🔗 Conectori Omnichannel & Keep-Alive (Cost 0 €)
+          🔗 Conectori Webhook & Keep-Alive (Cost 0 €)
         </h3>
         <div class="text-xs text-slate-300 space-y-2">
           <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-            <div class="font-medium text-emerald-400">1. Ping Keep-Alive (cron-job.org / UptimeRobot - 10 min):</div>
+            <div class="font-medium text-indigo-400">1. Cal.com Webhook (Sincronizare instantă din Google Calendar):</div>
+            <code id="calWebhookUrlCode" class="text-[11px] text-slate-400 break-all">POST /api/webhooks/calcom</code>
+          </div>
+          <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
+            <div class="font-medium text-emerald-400">2. Ping Keep-Alive (cron-job.org / UptimeRobot - 10 min):</div>
             <code id="healthUrlCode" class="text-[11px] text-slate-400 break-all">GET /api/health</code>
           </div>
           <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-            <div class="font-medium text-blue-400">2. Meta WhatsApp Cloud API Webhook (0 € Service Tier):</div>
+            <div class="font-medium text-blue-400">3. Meta WhatsApp Cloud API Webhook (0 € Service Tier):</div>
             <code id="waUrlCode" class="text-[11px] text-slate-400 break-all">POST /api/webhooks/whatsapp</code>
-          </div>
-          <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-            <div class="font-medium text-purple-400">3. Chatwoot / Typebot Webhook:</div>
-            <code id="cwUrlCode" class="text-[11px] text-slate-400 break-all">POST /api/webhooks/chatwoot</code>
           </div>
         </div>
       </div>
@@ -197,6 +225,84 @@
     </section>
 
   </main>
+
+  <!-- Modal Configurare Cal.com + Google Calendar -->
+  <div id="calModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            📅 Conectare Cal.com (Open-Source) + Google Calendar
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5">
+            100% Gratuit • Verificare ore libere medici & creare programări directe în Google Calendar
+          </p>
+        </div>
+        <button onclick="toggleCalModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+
+      <!-- Ghid rapid 3 pași -->
+      <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 space-y-1.5">
+        <div class="font-semibold text-blue-400 mb-1">Cum obții cheia gratuită în 2 minute:</div>
+        <div>1. Creează cont gratuit pe <a href="https://app.cal.com" target="_blank" class="text-blue-400 underline">app.cal.com</a> (sau instalează instanța ta open-source) și conectează <strong>Google Calendar</strong> din meniul <em>Apps ➔ Google Calendar</em>.</div>
+        <div>2. Mergi la <a href="https://app.cal.com/settings/developer/api-keys" target="_blank" class="text-blue-400 underline">Settings ➔ Developer ➔ API Keys</a> și generează o cheie (<code class="text-emerald-300">cal_live_...</code>).</div>
+        <div>3. Lipește cheia mai jos — aplicația va detecta automat tipurile tale de programări (Event Types) și le va salva în <code class="text-amber-300">.env</code>!</div>
+      </div>
+
+      <form onsubmit="saveCalComConfig(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Cheie API Cal.com (CALCOM_API_KEY):</label>
+          <input
+            type="password"
+            id="calApiKeyInput"
+            placeholder="cal_live_xxxxxxxxxxxxxxxxxxxxxxxx"
+            required
+            class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-blue-500 font-mono"
+          />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">ID Event Type (Opțional - Auto-detectat):</label>
+            <input
+              type="text"
+              id="calEventTypeIdInput"
+              placeholder="Auto-detecție dacă e gol"
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-white focus:outline-none focus:border-blue-500 font-mono"
+            />
+          </div>
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">URL Server Cal.com:</label>
+            <input
+              type="text"
+              id="calApiUrlInput"
+              value="https://api.cal.com"
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-white focus:outline-none focus:border-blue-500 font-mono"
+            />
+          </div>
+        </div>
+
+        <div id="calConfigResult" class="hidden p-3 rounded-xl text-xs"></div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button
+            type="button"
+            onclick="toggleCalModal()"
+            class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+          >
+            Închide
+          </button>
+          <button
+            type="submit"
+            id="saveCalBtn"
+            class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition"
+          >
+            🔍 Salvează & Detectează Event Types
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script>
     const sessionId = "session-" + Math.random().toString(36).substring(2, 9);
@@ -206,26 +312,114 @@
 
     window.addEventListener("DOMContentLoaded", () => {
       const origin = window.location.origin;
+      document.getElementById("calWebhookUrlCode").textContent = `${origin}/api/webhooks/calcom`;
       document.getElementById("healthUrlCode").textContent = `${origin}/api/health`;
       document.getElementById("waUrlCode").textContent = `${origin}/api/webhooks/whatsapp`;
-      document.getElementById("cwUrlCode").textContent = `${origin}/api/webhooks/chatwoot`;
 
       checkSystemHealth();
       loadAppointments();
     });
+
+    function toggleCalModal() {
+      const modal = document.getElementById("calModal");
+      if (modal.classList.contains("hidden")) {
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+      } else {
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+      }
+    }
+
+    async function saveCalComConfig(e) {
+      e.preventDefault();
+      const btn = document.getElementById("saveCalBtn");
+      const resBox = document.getElementById("calConfigResult");
+      const apiKey = document.getElementById("calApiKeyInput").value.trim();
+      const eventTypeId = document.getElementById("calEventTypeIdInput").value.trim();
+      const apiUrl = document.getElementById("calApiUrlInput").value.trim() || "https://api.cal.com";
+
+      btn.disabled = true;
+      btn.textContent = "⏳ Se conectează la Cal.com...";
+      resBox.classList.add("hidden");
+
+      try {
+        const res = await fetch("/api/calcom/configure", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            api_key: apiKey,
+            event_type_id: eventTypeId,
+            api_url: apiUrl,
+            timezone: "Europe/Bucharest"
+          })
+        });
+        const data = await res.json();
+        resBox.classList.remove("hidden");
+
+        const evCount = (data.discovered_event_types || []).length;
+        if (evCount > 0) {
+          const names = data.discovered_event_types.map(e => `${e.title} (#${e.id})`).join(", ");
+          document.getElementById("calEventTypeIdInput").value = data.calcom_event_type_id || "";
+          resBox.className = "p-3 rounded-xl text-xs bg-emerald-950/90 border border-emerald-700 text-emerald-200";
+          resBox.innerHTML = `✅ <strong>Conectat cu succes la Cal.com!</strong><br/>Event Types găsite: ${names}. Configurația a fost salvată în <code>.env</code>.`;
+        } else {
+          resBox.className = "p-3 rounded-xl text-xs bg-amber-950/90 border border-amber-700 text-amber-200";
+          resBox.innerHTML = `⚠️ Cheia a fost salvată în <code>.env</code>, dar nu am găsit Event Types active (verifică în Cal.com să ai cel puțin un Event Type creat sau introdu manual ID-ul).`;
+        }
+
+        await checkSystemHealth();
+        await loadAppointments();
+      } catch (err) {
+        resBox.classList.remove("hidden");
+        resBox.className = "p-3 rounded-xl text-xs bg-rose-950/90 border border-rose-700 text-rose-200";
+        resBox.textContent = "Eroare la comunicarea cu serverul.";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "🔍 Salvează & Detectează Event Types";
+      }
+    }
+
+    async function syncWithCalCom() {
+      try {
+        const res = await fetch("/api/calcom/sync", { method: "POST" });
+        const data = await res.json();
+        await loadAppointments();
+        if (!data.synced) {
+          toggleCalModal();
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
 
     async function checkSystemHealth() {
       try {
         const res = await fetch("/api/health");
         const data = await res.json();
         document.getElementById("clinicTitle").textContent = data.clinic_name;
+
+        const dateInput = document.getElementById("dateFilter");
+        if (!dateInput.value && data.tomorrow_date) {
+          dateInput.value = data.tomorrow_date;
+        }
+
         const badge = document.getElementById("llmBadge");
         if (data.groq_configured) {
-          badge.textContent = "⚡ Groq Live (Whisper + Llama 3.3)";
+          badge.textContent = `⚡ Groq Live (${data.llm_model})`;
           badge.className = "px-2.5 py-1 rounded-lg bg-emerald-950 border border-emerald-700 text-emerald-300";
         } else {
-          badge.textContent = "🧪 Mod Demo Local Activ (Adaugă GROQ_API_KEY pt. LLM complet)";
+          badge.textContent = "🧪 Mod Demo Local Activ";
           badge.className = "px-2.5 py-1 rounded-lg bg-amber-950/80 border border-amber-700/70 text-amber-300";
+        }
+
+        const calBadge = document.getElementById("calcomBadge");
+        if (data.calcom_configured) {
+          calBadge.textContent = `📅 Cal.com Live (#${data.calcom_event_type_id || "Auto"})`;
+          calBadge.className = "cursor-pointer px-2.5 py-1 rounded-lg bg-emerald-950 border border-emerald-700 text-emerald-300";
+        } else {
+          calBadge.textContent = "📅 Cal.com + GCal Sync (Click pt. Cheie API)";
+          calBadge.className = "cursor-pointer px-2.5 py-1 rounded-lg bg-indigo-950/80 border border-indigo-700/70 text-indigo-300 hover:bg-indigo-900/60 transition";
         }
       } catch (e) {
         console.error(e);
@@ -234,55 +428,89 @@
 
     async function loadAppointments() {
       try {
-        const res = await fetch("/api/appointments");
+        const dateVal = document.getElementById("dateFilter").value || "";
+        const docVal = document.getElementById("doctorFilter").value || "";
+        const params = new URLSearchParams();
+        if (dateVal) params.set("date", dateVal);
+        if (docVal) params.set("doctor", docVal);
+
+        const res = await fetch(`/api/appointments?${params.toString()}`);
         const data = await res.json();
         renderAppointments(data.appointments || []);
         if (data.availability) {
           document.getElementById("tomorrowDateLabel").textContent = data.availability.date;
-          renderAvailableSlots(data.availability.available_slots || []);
+          document.getElementById("providerSubtitle").textContent = data.availability.provider;
+          renderAvailableSlots(data.availability.available_slots || [], data.availability.date);
         }
       } catch (e) {
         console.error(e);
       }
     }
 
-    function renderAvailableSlots(slots) {
+    function renderAvailableSlots(slots, dateStr) {
       const container = document.getElementById("availableSlotsContainer");
       container.innerHTML = "";
       if (!slots.length) {
-        container.innerHTML = `<span class="text-xs text-rose-400">Toate orele sunt ocupate</span>`;
+        container.innerHTML = `<span class="text-xs text-rose-400">Toate orele sunt ocupate în această zi</span>`;
         return;
       }
+      const docVal = document.getElementById("doctorFilter").value;
       slots.forEach(slot => {
-        const span = document.createElement("span");
-        span.className = "text-xs px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono";
-        span.textContent = slot;
-        container.appendChild(span);
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "text-xs px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 font-mono transition";
+        btn.textContent = slot;
+        btn.title = "Click pentru a cere agentului AI programare la această oră";
+        btn.onclick = () => {
+          const docMention = docVal ? ` la ${docVal}` : "";
+          sendQuickPrompt(`Vreau să mă programez pe data de ${dateStr} la ora ${slot}${docMention} pe numele Popescu Vlad, telefon 0722999888`);
+        };
+        container.appendChild(btn);
       });
     }
 
     function renderAppointments(appointments) {
       const list = document.getElementById("appointmentsList");
+      document.getElementById("totalBookingsCount").textContent = appointments.length;
       list.innerHTML = "";
       appointments.forEach(appt => {
         const item = document.createElement("div");
-        item.className = "p-3 rounded-xl bg-slate-950/90 border border-slate-800 flex items-center justify-between gap-2";
+        item.className = "p-3 rounded-xl bg-slate-950/90 border border-slate-800 flex flex-col gap-2";
+        const gcalLink = appt.gcal_url
+          ? `<a href="${appt.gcal_url}" target="_blank" class="text-[11px] px-2 py-0.5 rounded bg-blue-500/15 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 transition" title="Adaugă sau deschide în Google Calendar">📅 Google Calendar ↗</a>`
+          : "";
         item.innerHTML = `
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-mono px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">${appt.date} • ${appt.time}</span>
-              <span class="text-sm font-semibold text-white">${appt.patient_name}</span>
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="text-xs font-mono px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">${appt.date} • ${appt.time}</span>
+                <span class="text-sm font-semibold text-white">${appt.patient_name}</span>
+                <span class="text-[10px] font-mono text-slate-400">(${appt.id})</span>
+              </div>
+              <div class="text-xs text-slate-400 mt-1">
+                🦷 ${appt.service} • 👨‍⚕️ <span class="text-slate-300">${appt.doctor || "Dr. Elena Dumitrescu"}</span> • 📞 ${appt.phone}
+              </div>
             </div>
-            <div class="text-xs text-slate-400 mt-1">
-              ${appt.service} • 📞 ${appt.phone}
-            </div>
+            <button onclick="cancelBooking('${appt.id}')" class="text-[11px] px-2 py-0.5 rounded bg-rose-500/10 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 transition" title="Anulează programarea">
+              ✕ Anulează
+            </button>
           </div>
-          <span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 whitespace-nowrap">
-            ${appt.source}
-          </span>
+          <div class="flex items-center justify-between pt-1 border-t border-slate-800/70">
+            <span class="text-[11px] text-slate-400">Sursă: <strong class="text-slate-300">${appt.source}</strong></span>
+            ${gcalLink}
+          </div>
         `;
         list.appendChild(item);
       });
+    }
+
+    async function cancelBooking(bookingId) {
+      try {
+        await fetch(`/api/appointments/${encodeURIComponent(bookingId)}`, { method: "DELETE" });
+        await loadAppointments();
+      } catch (e) {
+        console.error(e);
+      }
     }
 
     function appendMessage(role, text, tools = []) {
@@ -405,7 +633,7 @@
         isRecording = false;
         micBtn.className = "w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center text-2xl shadow-lg shadow-blue-600/30 transition focus:outline-none";
         micBtn.textContent = "🎤";
-        statusText.textContent = "⏳ Procesez vocea (STT -> LLM -> Edge-TTS Română)...";
+        statusText.textContent = "⏳ Procesez vocea (STT -> LLM -> Cal.com -> Edge-TTS Română)...";
         statusText.className = "text-xs text-amber-300 mt-0.5";
       }
     }

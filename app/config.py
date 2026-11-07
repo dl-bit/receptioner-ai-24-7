@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -6,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     # LLM & STT (Groq / Gemini Free Tiers)
     groq_api_key: str = ""
-    llm_model: str = "llama-3.3-70b-versatile"
+    llm_model: str = "openai/gpt-oss-120b"
     stt_model: str = "whisper-large-v3-turbo"
     gemini_api_key: str = ""
 
@@ -14,10 +13,12 @@ class Settings(BaseSettings):
     default_tts_voice: str = "ro-RO-AlinaNeural"
     default_tts_rate: str = "+5%"
 
-    # Cal.com CRM & Scheduling
+    # Cal.com CRM & Scheduling (Open-Source / Cloud Free Tier synced with Google Calendar)
+    calcom_api_url: str = "https://api.cal.com"
     calcom_api_key: str = ""
     calcom_event_type_id: str = ""
     calcom_timezone: str = "Europe/Bucharest"
+    calcom_webhook_secret: str = ""
 
     # Qdrant Cloud Free (1GB) & Supabase Free
     qdrant_url: str = ""
@@ -45,6 +46,30 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+DOCTORS_CATALOG = [
+    {
+        "id": "dr-elena",
+        "name": "Dr. Elena Dumitrescu",
+        "specialty": "Stomatologie Generală, Estetică & Endodonție",
+        "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+        "default_slots": ["09:00", "10:00", "11:30", "13:00", "15:00", "16:30", "18:00"],
+    },
+    {
+        "id": "dr-andrei",
+        "name": "Dr. Andrei Ionescu",
+        "specialty": "Chirurgie Dento-Alveolară & Implantologie",
+        "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        "default_slots": ["09:00", "10:30", "12:00", "14:00", "15:00", "16:30", "18:00"],
+    },
+    {
+        "id": "dr-mihai",
+        "name": "Dr. Mihai Radu",
+        "specialty": "Ortodonție & Pedodonție (Copii)",
+        "days": ["Monday", "Wednesday", "Friday", "Saturday"],
+        "default_slots": ["09:00", "10:00", "11:30", "13:00", "15:00", "16:30"],
+    },
+]
 
 DEFAULT_CLINIC_KNOWLEDGE = [
     {
@@ -94,7 +119,8 @@ DEFAULT_CLINIC_KNOWLEDGE = [
 
 def get_system_prompt() -> str:
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M (%A)")
-    return f"""Ești recepționerul virtual AI (24/7) al „{settings.clinic_name}”.
+    tomorrow_str = (datetime.now()).strftime("%Y-%m-%d")
+    return f"""Ești recepționerul virtual AI (24/7) al „{settings.clinic_name}”, conectat la sistemul de programări Cal.com sincronizat cu Google Calendar.
 Data și ora curentă: {now_str}.
 
 REGULI DE COMUNICARE (FOARTE IMPORTANT PENTRU VOCE ȘI WHATSAPP):
@@ -104,9 +130,10 @@ REGULI DE COMUNICARE (FOARTE IMPORTANT PENTRU VOCE ȘI WHATSAPP):
    - NU folosi liste lungi cu buline, tabele Markdown sau simboluri speciale (fără `*`, `#`, `**`).
    - Scrie orele și prețurile clar (ex: „ora 16:30”, „150 de lei”).
 3. Conform Articolului 50 din EU AI Act, la primul mesaj dintr-o conversație sau dacă ești întrebat, menționează scurt că ești asistentul virtual AI al clinicii.
-4. Când un pacient vrea o programare:
-   - Verifică ÎNTOTDEAUNA mai întâi disponibilitatea folosind unealta `check_availability` pentru ziua dorită (format YYYY-MM-DD).
+4. Când un pacient vrea o programare, reprogramare sau anulare:
+   - Verifică ÎNTOTDEAUNA mai întâi disponibilitatea medicilor în Cal.com / Google Calendar folosind unealta `check_availability` pentru ziua dorită (format YYYY-MM-DD) și opțional medicul dorit.
    - Propune pacientului 2 sau 3 ore libere concrete.
-   - Înainte de a apela unealta `book_appointment`, asigură-te că ai aflat: Numele pacientului, Numărul de telefon (sau folosește „0700000000” dacă sună din demo web și nu îl spune), Data și Ora exactă și motivul vizitei (ex: consultație, detartraj, durere de măsea).
+   - Înainte de a apela unealta `book_appointment`, asigură-te că ai aflat: Numele pacientului, Numărul de telefon (sau folosește „0700000000” dacă sună din demo web și nu îl spune), Data și Ora exactă și motivul vizitei (ex: consultație, detartraj, implant, durere de măsea).
+   - Dacă pacientul dorește să anuleze o programare existentă, folosește unealta `cancel_appointment`.
 5. Dacă pacientul întreabă de prețuri, adresă, medici sau plata în rate, folosește unealta `search_clinic_info` sau informațiile din baza de cunoștințe a clinicii.
 """

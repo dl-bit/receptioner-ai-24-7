@@ -13,14 +13,25 @@ TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "check_availability",
-            "description": "Verifică intervalele orare libere din calendarul clinicii pentru o anumită dată.",
+            "description": (
+                "Verifică intervalele orare libere ale medicilor în sistemul Cal.com "
+                "(sincronizat cu Google Calendar) pentru o anumită dată și opțional un medic sau serviciu."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "date": {
                         "type": "string",
                         "description": "Data dorită în format YYYY-MM-DD (ex: 2026-11-08).",
-                    }
+                    },
+                    "doctor": {
+                        "type": "string",
+                        "description": "Opțional: Numele medicului (ex: Dr. Elena Dumitrescu, Dr. Andrei Ionescu, Dr. Mihai Radu).",
+                    },
+                    "service": {
+                        "type": "string",
+                        "description": "Opțional: Serviciul dorit (ex: Consultație, Detartraj, Implant, Ortodonție).",
+                    },
                 },
                 "required": ["date"],
             },
@@ -30,7 +41,7 @@ TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "book_appointment",
-            "description": "Înregistrează o programare nouă în calendarul clinicii (Cal.com / Google Calendar).",
+            "description": "Înregistrează o programare nouă în Cal.com (sincronizată automat în Google Calendar-ul medicului).",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -52,10 +63,35 @@ TOOLS_SCHEMA = [
                     },
                     "service": {
                         "type": "string",
-                        "description": "Tipul serviciului (ex: Consultație, Detartraj, Urgență).",
+                        "description": "Tipul serviciului (ex: Consultație, Detartraj, Implant, Urgență).",
+                    },
+                    "doctor": {
+                        "type": "string",
+                        "description": "Opțional: Numele medicului preferat.",
                     },
                 },
                 "required": ["patient_name", "date", "time", "service"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "cancel_appointment",
+            "description": "Anulează o programare existentă din Cal.com / Google Calendar după codul programării sau numele pacientului.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "booking_id_or_name": {
+                        "type": "string",
+                        "description": "Codul programării (ex: BK-1001, CAL-123) sau numele pacientului.",
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "Motivul anulării.",
+                    },
+                },
+                "required": ["booking_id_or_name"],
             },
         },
     },
@@ -81,9 +117,8 @@ TOOLS_SCHEMA = [
 
 class ReceptionistAgent:
     """
-    Agentul AI conversațional în limba română cu memorie pe sesiuni și suport complet de Tool Calling.
-    Funcționează cu Groq Cloud Free Tier (Llama-3.3-70b) și include un motor inteligent
-    de fallback local dacă utilizatorul nu a introdus încă cheia API!
+    Agentul AI conversațional în limba română cu memorie pe sesiuni și suport complet de Tool Calling
+    conectat la Cal.com + Google Calendar.
     """
 
     GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -108,7 +143,11 @@ class ReceptionistAgent:
             date_str = args.get("date") or (datetime.now() + timedelta(days=1)).strftime(
                 "%Y-%m-%d"
             )
-            return await cal_service.check_availability(date_str)
+            return await cal_service.check_availability(
+                date_str=date_str,
+                doctor=args.get("doctor"),
+                service=args.get("service"),
+            )
 
         if tool_name == "book_appointment":
             return await cal_service.book_appointment(
@@ -118,7 +157,14 @@ class ReceptionistAgent:
                 or (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d"),
                 time_str=args.get("time", "16:30"),
                 service=args.get("service", "Consultație Stomatologică"),
+                doctor=args.get("doctor"),
                 source=channel,
+            )
+
+        if tool_name == "cancel_appointment":
+            return await cal_service.cancel_appointment(
+                booking_id_or_name=args.get("booking_id_or_name", ""),
+                reason=args.get("reason", "Anulat prin Recepționerul AI"),
             )
 
         if tool_name == "search_clinic_info":
@@ -131,22 +177,28 @@ class ReceptionistAgent:
         self, user_message: str, channel: str
     ) -> tuple[str, list[str]]:
         """
-        Motor local inteligent pentru situația în care utilizatorul testează aplicația
-        înainte de a adăuga cheia GROQ_API_KEY în .env. Poate verifica orele, face programări reale
-        și răspunde la întrebări despre prețuri!
+        Motor local inteligent de siguranță pentru verificarea orelor în Cal.com,
+        crearea programărilor și răspunsuri despre tarife.
         """
         msg_lower = user_message.lower()
         tools_used: list[str] = []
         tomorrow_str = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
 
+        # 0. Dacă utilizatorul dorește anularea unei programări
+        if any(k in msg_lower for k in ["anuleaz", "anulare", "renunț", "renunt"]):
+            code_match = re.search(r"\b((?:BK|CAL)-\d+)\b", user_message, re.IGNORECASE)
+            target = code_match.group(1) if code_match else "Popescu"
+            tools_used.append("cancel_appointment")
+            res = await cal_service.cancel_appointment(target)
+            return (res.get("message", "Am verificat cererea de anulare."), tools_used)
+
         # 1. Dacă utilizatorul confirmă o programare sau dă numele și o oră
-        time_match = re.search(r"\b(09:00|10:00|11:30|13:00|15:00|16:30|18:00)\b", msg_lower)
+        time_match = re.search(r"\b(09:00|10:00|10:30|11:30|12:00|13:00|14:00|15:00|16:30|18:00)\b", msg_lower)
         if time_match and any(
             k in msg_lower
             for k in ["numele", "mă numesc", "ma numesc", "programează", "programeaza", "da", "vreau la", "popescu", "ionescu"]
         ):
             chosen_time = time_match.group(1)
-            # Încercăm să extragem un nume
             name_match = re.search(
                 r"(?:numele|numesc|sunt|pentru)\s+([a-zA-ZăâîșțĂÂÎȘȚ]+\s*[a-zA-ZăâîșțĂÂÎȘȚ]*)",
                 user_message,
@@ -155,7 +207,7 @@ class ReceptionistAgent:
             patient_name = (
                 name_match.group(1).strip().title()
                 if name_match
-                else "Popescu Vlad (Demo)"
+                else "Popescu Vlad"
             )
             phone_match = re.search(r"(07\d{2}\s?\d{3}\s?\d{3})", user_message)
             phone = phone_match.group(1) if phone_match else "0722 999 888"
@@ -173,7 +225,8 @@ class ReceptionistAgent:
                 booking = res["booking"]
                 return (
                     f"Perfect! Am înregistrat programarea cu codul {booking['id']} pentru {booking['patient_name']}, "
-                    f"mâine, {tomorrow_str}, la ora {chosen_time}. O puteți vedea deja în calendarul live din dreapta!",
+                    f"mâine, {tomorrow_str}, la ora {chosen_time}, la {booking['doctor']}. "
+                    "Programarea a fost sincronizată în calendar!",
                     tools_used,
                 )
             else:
@@ -188,21 +241,21 @@ class ReceptionistAgent:
             return (
                 "La Clinica Demo Smile, o consultație primară costă 150 de lei, iar pachetul complet de igienizare "
                 "cu detartraj și AirFlow este 350 de lei. Acceptăm și plata în până la 12 rate fără dobândă. "
-                "Doriți să verificăm o oră liberă pentru mâine?",
+                "Doriți să verificăm în Cal.com o oră liberă pentru mâine?",
                 tools_used,
             )
 
         # 3. Dacă întreabă de programare / ore libere / mâine / durere
         if any(
             k in msg_lower
-            for k in ["programare", "liber", "mâine", "maine", "azi", "loc", "doare", "măsea", "masea", "consult"]
+            for k in ["programare", "liber", "mâine", "maine", "azi", "loc", "doare", "măsea", "masea", "consult", "medic"]
         ):
             tools_used.append("check_availability")
             avail = await cal_service.check_availability(tomorrow_str)
             slots = avail.get("available_slots", [])
             slots_preview = ", ".join(slots[:4]) if slots else "16:30"
             return (
-                f"Am verificat calendarul pentru mâine, {tomorrow_str}. Avem intervale libere la orele: {slots_preview}. "
+                f"Am verificat calendarul medicilor pentru mâine, {tomorrow_str}. Avem intervale libere la orele: {slots_preview}. "
                 "Spuneți-mi, vă rog, ce oră vă avantajează și pe ce nume să fac programarea?",
                 tools_used,
             )
@@ -210,8 +263,8 @@ class ReceptionistAgent:
         # Răspuns implicit de întâmpinare
         return (
             f"Bună ziua! Sunt asistentul virtual AI al {settings.clinic_name}. "
-            "Vă pot ajuta pe loc cu o programare în calendar, verificarea orelor libere sau informații despre tarife și medici. "
-            "Cu ce vă pot ajuta astăzi?",
+            "Vă pot ajuta pe loc cu verificarea orelor libere ale medicilor în Cal.com și Google Calendar, "
+            "crearea unei programări sau informații despre tarife. Cu ce vă pot ajuta astăzi?",
             tools_used,
         )
 
@@ -246,14 +299,13 @@ class ReceptionistAgent:
 
         try:
             async with httpx.AsyncClient(timeout=25.0) as client:
-                # Primul apel către LLM cu Tools activate
                 payload = {
                     "model": settings.llm_model,
                     "messages": messages,
                     "tools": TOOLS_SCHEMA,
                     "tool_choice": "auto",
                     "temperature": 0.3,
-                    "max_tokens": 350,
+                    "max_tokens": 400,
                 }
                 resp = await client.post(self.GROQ_CHAT_URL, headers=headers, json=payload)
                 resp.raise_for_status()
@@ -282,12 +334,11 @@ class ReceptionistAgent:
                             }
                         )
 
-                    # Al doilea apel către LLM pentru formularea răspunsului final în română
                     second_payload = {
                         "model": settings.llm_model,
                         "messages": messages,
                         "temperature": 0.3,
-                        "max_tokens": 350,
+                        "max_tokens": 400,
                     }
                     resp2 = await client.post(
                         self.GROQ_CHAT_URL, headers=headers, json=second_payload
@@ -297,7 +348,13 @@ class ReceptionistAgent:
                         resp2.json()["choices"][0]["message"].get("content", "").strip()
                     )
                 else:
-                    final_reply = choice.get("content", "").strip()
+                    final_reply = (choice.get("content") or "").strip()
+
+                if not final_reply:
+                    final_reply, fallback_tools = await self._local_smart_fallback(
+                        user_message, channel
+                    )
+                    tools_used.extend(fallback_tools)
 
                 messages.append({"role": "assistant", "content": final_reply})
                 await storage_service.log_interaction(

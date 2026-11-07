@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from app.config import settings
+from app.config import DOCTORS_CATALOG, settings
 from app.services.cal_service import cal_service
 from app.services.llm_agent import receptionist_agent
 from app.services.storage_service import storage_service
@@ -16,12 +16,12 @@ from app.services.stt_service import stt_service
 from app.services.tts_service import tts_service
 
 app = FastAPI(
-    title="Recepționer & Call-Center AI 24/7 (Voce + WhatsApp)",
+    title="Recepționer & Call-Center AI 24/7 (Voce + WhatsApp + Cal.com)",
     description=(
         "Arhitectură Distribuită Zero-Cost pe Hugging Face Spaces (16 GB RAM) + "
-        "Groq Whisper/Llama + Edge-TTS Română + Cal.com + Qdrant/Supabase"
+        "Groq Whisper/LLM + Edge-TTS Română + Cal.com (Google Calendar Sync) + Qdrant/Supabase"
     ),
-    version="1.0.0",
+    version="1.1.0",
 )
 
 app.add_middleware(
@@ -52,6 +52,15 @@ class ManualBookingRequest(BaseModel):
     date: str
     time: str
     service: str = "Consultație + Plan Tratament"
+    doctor: str | None = None
+    email: str = "pacient@demosmile.ro"
+
+
+class CalComConfigRequest(BaseModel):
+    api_key: str
+    event_type_id: str = ""
+    api_url: str = "https://api.cal.com"
+    timezone: str = "Europe/Bucharest"
 
 
 # ============================================================================
@@ -66,11 +75,15 @@ async def health_check() -> dict[str, Any]:
         "clinic_name": settings.clinic_name,
         "timestamp": datetime.now().isoformat(),
         "groq_configured": bool(settings.groq_api_key),
-        "calcom_configured": bool(settings.calcom_api_key and settings.calcom_event_type_id),
+        "llm_model": settings.llm_model,
+        "calcom_configured": bool(settings.calcom_api_key),
+        "calcom_event_type_id": settings.calcom_event_type_id,
+        "calcom_api_url": settings.calcom_api_url,
         "qdrant_configured": bool(settings.qdrant_url),
         "supabase_configured": bool(settings.supabase_url),
         "default_voice": settings.default_tts_voice,
         "supported_voices": tts_service.SUPPORTED_VOICES,
+        "doctors": DOCTORS_CATALOG,
         "tomorrow_date": tomorrow,
     }
 
@@ -165,15 +178,21 @@ async def tts_endpoint(req: TTSRequest) -> Response:
 
 
 # ============================================================================
-# 4. CALENDAR & PROGRAMĂRI LIVE (Cal.com + Panou Demo)
+# 4. CALENDAR & PROGRAMĂRI LIVE (Cal.com Open-Source + Google Calendar Sync)
 # ============================================================================
 @app.get("/api/appointments")
-async def list_appointments(date: str | None = None) -> dict[str, Any]:
+async def list_appointments(
+    date: str | None = None,
+    doctor: str | None = None,
+) -> dict[str, Any]:
     target_date = date or (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-    avail = await cal_service.check_availability(target_date)
+    avail = await cal_service.check_availability(target_date, doctor=doctor)
     return {
         "appointments": cal_service.get_all_appointments(),
         "availability": avail,
+        "doctors": DOCTORS_CATALOG,
+        "calcom_configured": bool(settings.calcom_api_key),
+        "calcom_event_type_id": settings.calcom_event_type_id,
         "audit_logs": storage_service.audit_logs[:15],
     }
 
@@ -186,12 +205,61 @@ async def create_manual_appointment(req: ManualBookingRequest) -> dict[str, Any]
         date_str=req.date,
         time_str=req.time,
         service=req.service,
+        doctor=req.doctor,
+        email=req.email,
         source="Programare Directă",
     )
     return {
         "result": res,
         "appointments": cal_service.get_all_appointments(),
     }
+
+
+@app.delete("/api/appointments/{booking_id}")
+async def cancel_appointment_endpoint(booking_id: str) -> dict[str, Any]:
+    res = await cal_service.cancel_appointment(booking_id)
+    return {
+        "result": res,
+        "appointments": cal_service.get_all_appointments(),
+    }
+
+
+@app.get("/api/calcom/status")
+async def get_calcom_status() -> dict[str, Any]:
+    event_types = []
+    if settings.calcom_api_key:
+        event_types = await cal_service.discover_event_types(settings.calcom_api_key)
+    return {
+        "configured": bool(settings.calcom_api_key),
+        "api_url": settings.calcom_api_url,
+        "event_type_id": settings.calcom_event_type_id,
+        "timezone": settings.calcom_timezone,
+        "event_types": event_types,
+        "doctors": DOCTORS_CATALOG,
+    }
+
+
+@app.post("/api/calcom/configure")
+async def configure_calcom_endpoint(req: CalComConfigRequest) -> dict[str, Any]:
+    return await cal_service.configure_and_test(
+        api_key=req.api_key,
+        event_type_id=req.event_type_id,
+        api_url=req.api_url,
+        timezone=req.timezone,
+    )
+
+
+@app.post("/api/calcom/sync")
+async def sync_calcom_endpoint() -> dict[str, Any]:
+    return await cal_service.sync_bookings_from_calcom()
+
+
+@app.post("/api/webhooks/calcom")
+async def receive_calcom_webhook(request: Request) -> dict[str, Any]:
+    """Webhook în timp real pentru Cal.com (BOOKING_CREATED, BOOKING_RESCHEDULED, BOOKING_CANCELLED)."""
+    payload = await request.json()
+    res = cal_service.handle_webhook(payload)
+    return {"status": "processed", "detail": res}
 
 
 @app.post("/api/reset-session")
