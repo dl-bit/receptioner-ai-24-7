@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 import httpx
-from app.config import settings, DEFAULT_CLINIC_KNOWLEDGE
+from app.config import settings, DEFAULT_CLINIC_KNOWLEDGE, get_doctors_catalog
 
 
 class StorageService:
@@ -9,7 +9,7 @@ class StorageService:
     Gestionează conexiunea distribuită cu:
     1. Qdrant Cloud Free Tier (1 GB permanent) pentru căutare în baza de cunoștințe a clinicii (RAG).
     2. Supabase PostgreSQL Free Tier pentru salvarea jurnalului de conversații (Audit EU AI Act) și a lead-urilor.
-    Funcționează impecabil și fără chei configurate (folosind fallback in-memory).
+    Funcționează impecabil și fără chei configurate (folosind fallback in-memory sincronizat cu doctors.json).
     """
 
     def __init__(self) -> None:
@@ -29,10 +29,31 @@ class StorageService:
             except Exception:
                 self._qdrant_client = None
 
+    def _get_live_knowledge(self) -> list[dict[str, Any]]:
+        """Sincronizează secțiunea Echipa Medicală cu medicii actuali din doctors.json."""
+        doctors = get_doctors_catalog()
+        docs_text = " ".join(
+            f"{d['name']} - {d['specialty']} (ore disponibile: {', '.join(d.get('default_slots', []))})."
+            for d in doctors
+        )
+        live_items: list[dict[str, Any]] = []
+        for item in self.local_knowledge:
+            if item.get("category") == "medici":
+                live_items.append(
+                    {
+                        **item,
+                        "content": docs_text,
+                    }
+                )
+            else:
+                live_items.append(item)
+        return live_items
+
     def search_knowledge(self, query: str) -> list[dict[str, Any]]:
         """
         Caută informații despre prețuri, servicii, medici și program în baza de cunoștințe.
         """
+        knowledge = self._get_live_knowledge()
         query_words = [
             w.lower()
             for w in query.replace("?", " ").replace(",", " ").split()
@@ -40,17 +61,17 @@ class StorageService:
         ]
 
         if not query_words:
-            return self.local_knowledge
+            return knowledge
 
         scored: list[tuple[int, dict[str, Any]]] = []
-        for item in self.local_knowledge:
+        for item in knowledge:
             haystack = f"{item['title']} {item['category']} {item['content']}".lower()
             score = sum(2 if w in haystack else 0 for w in query_words)
             scored.append((score, item))
 
         scored.sort(key=lambda x: x[0], reverse=True)
         top_matches = [item for score, item in scored if score > 0]
-        return top_matches if top_matches else self.local_knowledge
+        return top_matches if top_matches else knowledge
 
     async def log_interaction(
         self,

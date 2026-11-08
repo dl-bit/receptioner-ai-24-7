@@ -203,21 +203,32 @@
 
       <!-- Omnichannel & Hugging Face Zero-Cost Architecture Card -->
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
-        <h3 class="font-semibold text-white text-sm flex items-center gap-2">
-          🔗 Conectori Webhook & Keep-Alive (Cost 0 €)
-        </h3>
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold text-white text-sm flex items-center gap-2">
+            🔗 Conectori Omnichannel & Webhooks (Cost 0 €)
+          </h3>
+          <button onclick="toggleOmniModal()" class="text-xs px-2.5 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 font-medium transition">
+            💬 Configurare Canale
+          </button>
+        </div>
         <div class="text-xs text-slate-300 space-y-2">
           <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-            <div class="font-medium text-indigo-400">1. Cal.com Webhook (Sincronizare instantă din Google Calendar):</div>
-            <code id="calWebhookUrlCode" class="text-[11px] text-slate-400 break-all">POST /api/webhooks/calcom</code>
+            <div class="font-medium text-sky-400">1. Telegram Bot Webhook (Text + Voce AI):</div>
+            <code id="tgUrlCode" class="text-[11px] text-slate-400 break-all">POST /api/webhooks/telegram</code>
           </div>
           <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-            <div class="font-medium text-emerald-400">2. Ping Keep-Alive (cron-job.org / UptimeRobot - 10 min):</div>
-            <code id="healthUrlCode" class="text-[11px] text-slate-400 break-all">GET /api/health</code>
-          </div>
-          <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-            <div class="font-medium text-blue-400">3. Meta WhatsApp Cloud API Webhook (0 € Service Tier):</div>
+            <div class="font-medium text-emerald-400">2. Meta WhatsApp Cloud API Webhook (0 € Service Tier):</div>
             <code id="waUrlCode" class="text-[11px] text-slate-400 break-all">POST /api/webhooks/whatsapp</code>
+          </div>
+          <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
+            <div class="font-medium text-purple-400">3. Chatwoot / Typebot Omnichannel Webhook:</div>
+            <code id="cwUrlCode" class="text-[11px] text-slate-400 break-all">POST /api/webhooks/chatwoot</code>
+          </div>
+          <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
+            <div class="font-medium text-indigo-400">4. Cal.com Webhook & Keep-Alive Ping:</div>
+            <code id="calWebhookUrlCode" class="text-[11px] text-slate-400 break-all">POST /api/webhooks/calcom</code>
+            <span class="text-slate-600 mx-1">|</span>
+            <code id="healthUrlCode" class="text-[11px] text-slate-400 break-all">GET /api/health</code>
           </div>
         </div>
       </div>
@@ -362,6 +373,80 @@
     </div>
   </div>
 
+  <!-- Modal Configurare Omnichannel (Telegram / WhatsApp / Chatwoot) -->
+  <div id="omniModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            💬 Conectare Telegram, WhatsApp Cloud API & Chatwoot
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Salvează cheile direct în <code>.env</code> și înregistrează automat Webhook-ul Telegram
+          </p>
+        </div>
+        <button onclick="toggleOmniModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+
+      <form onsubmit="saveOmniConfig(event)" class="space-y-3 text-xs">
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+          <div class="font-semibold text-sky-400">1. Telegram Bot (Text + Mesaje Vocale în Română — 100% Gratuit)</div>
+          <div>
+            <label class="block text-slate-300 mb-1">TELEGRAM_BOT_TOKEN (de la @BotFather):</label>
+            <input type="password" id="tgBotTokenInput" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
+          </div>
+          <div>
+            <label class="block text-slate-300 mb-1">URL Public HTTPS al aplicației (pt. activare automată Webhook Telegram):</label>
+            <input type="text" id="publicBaseUrlInput" placeholder="Ex: https://numele-tau.hf.space sau https://xxxx.ngrok-free.app" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+          <div class="font-semibold text-emerald-400">2. Meta WhatsApp Cloud API (developers.facebook.com)</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label class="block text-slate-300 mb-1">WHATSAPP_PHONE_NUMBER_ID:</label>
+              <input type="text" id="waPhoneIdInput" placeholder="Ex: 109876543210987" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label class="block text-slate-300 mb-1">WHATSAPP_VERIFY_TOKEN:</label>
+              <input type="text" id="waVerifyTokenInput" value="receptioner_secret_token_2027" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-slate-300 mb-1">WHATSAPP_ACCESS_TOKEN:</label>
+            <input type="password" id="waAccessTokenInput" placeholder="EAAGm0PX4ZCpsBA..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+          <div class="font-semibold text-purple-400">3. Chatwoot CRM (app.chatwoot.com sau Self-Hosted)</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label class="block text-slate-300 mb-1">CHATWOOT_API_URL:</label>
+              <input type="text" id="cwApiUrlInput" placeholder="https://app.chatwoot.com" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label class="block text-slate-300 mb-1">CHATWOOT_API_TOKEN:</label>
+              <input type="password" id="cwApiTokenInput" placeholder="Token din Profile Settings" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
+            </div>
+          </div>
+        </div>
+
+        <div id="omniConfigResult" class="hidden p-3 rounded-xl text-xs"></div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" onclick="toggleOmniModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300">
+            Închide
+          </button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold">
+            💾 Salvează Canale Omnichannel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     const sessionId = "session-" + Math.random().toString(36).substring(2, 9);
     let mediaRecorder = null;
@@ -374,10 +459,49 @@
       document.getElementById("calWebhookUrlCode").textContent = `${origin}/api/webhooks/calcom`;
       document.getElementById("healthUrlCode").textContent = `${origin}/api/health`;
       document.getElementById("waUrlCode").textContent = `${origin}/api/webhooks/whatsapp`;
+      document.getElementById("tgUrlCode").textContent = `${origin}/api/webhooks/telegram`;
+      document.getElementById("cwUrlCode").textContent = `${origin}/api/webhooks/chatwoot`;
 
       checkSystemHealth();
       loadAppointments();
     });
+
+    function toggleOmniModal() {
+      const modal = document.getElementById("omniModal");
+      if (modal.classList.contains("hidden")) {
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+      } else {
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+      }
+    }
+
+    async function saveOmniConfig(e) {
+      e.preventDefault();
+      const resBox = document.getElementById("omniConfigResult");
+      const res = await fetch("/api/omnichannel/configure", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          telegram_bot_token: document.getElementById("tgBotTokenInput").value,
+          public_webhook_base_url: document.getElementById("publicBaseUrlInput").value,
+          whatsapp_phone_number_id: document.getElementById("waPhoneIdInput").value,
+          whatsapp_verify_token: document.getElementById("waVerifyTokenInput").value,
+          whatsapp_access_token: document.getElementById("waAccessTokenInput").value,
+          chatwoot_api_url: document.getElementById("cwApiUrlInput").value,
+          chatwoot_api_token: document.getElementById("cwApiTokenInput").value
+        })
+      });
+      const data = await res.json();
+      resBox.classList.remove("hidden");
+      resBox.className = "p-3 rounded-xl text-xs bg-emerald-950/90 border border-emerald-700 text-emerald-200";
+      let msg = "✅ Setările Omnichannel au fost salvate în <code>.env</code>!";
+      if (data.telegram_webhook && data.telegram_webhook.ok) {
+        msg += "<br/>🚀 Webhook-ul Telegram a fost activat cu succes!";
+      }
+      resBox.innerHTML = msg;
+    }
 
     function toggleDoctorsModal() {
       const modal = document.getElementById("doctorsModal");

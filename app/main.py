@@ -16,12 +16,12 @@ from app.services.stt_service import stt_service
 from app.services.tts_service import tts_service
 
 app = FastAPI(
-    title="Recepționer & Call-Center AI 24/7 (Voce + WhatsApp + Cal.com)",
+    title="Recepționer & Call-Center AI 24/7 (Voce + WhatsApp + Telegram + Chatwoot + Cal.com)",
     description=(
         "Arhitectură Distribuită Zero-Cost pe Hugging Face Spaces (16 GB RAM) + "
-        "Groq Whisper/LLM + Edge-TTS Română + Cal.com (Google Calendar Sync) + Qdrant/Supabase"
+        "Groq Whisper/LLM + Edge-TTS Română + Cal.com (Google Calendar Sync) + Omnichannel"
     ),
-    version="1.2.0",
+    version="1.3.0",
 )
 
 app.add_middleware(
@@ -63,6 +63,16 @@ class CalComConfigRequest(BaseModel):
     timezone: str = "Europe/Bucharest"
 
 
+class OmnichannelConfigRequest(BaseModel):
+    whatsapp_verify_token: str = "receptioner_secret_token_2027"
+    whatsapp_access_token: str = ""
+    whatsapp_phone_number_id: str = ""
+    telegram_bot_token: str = ""
+    public_webhook_base_url: str = ""
+    chatwoot_api_url: str = ""
+    chatwoot_api_token: str = ""
+
+
 class DoctorSaveRequest(BaseModel):
     id: str = ""
     name: str
@@ -88,6 +98,13 @@ async def health_check() -> dict[str, Any]:
         "calcom_configured": bool(settings.calcom_api_key),
         "calcom_event_type_id": settings.calcom_event_type_id,
         "calcom_api_url": settings.calcom_api_url,
+        "whatsapp_configured": bool(
+            settings.whatsapp_access_token and settings.whatsapp_phone_number_id
+        ),
+        "telegram_configured": bool(settings.telegram_bot_token),
+        "chatwoot_configured": bool(
+            settings.chatwoot_api_url and settings.chatwoot_api_token
+        ),
         "qdrant_configured": bool(settings.qdrant_url),
         "supabase_configured": bool(settings.supabase_url),
         "default_voice": settings.default_tts_voice,
@@ -204,7 +221,6 @@ async def save_doctor_endpoint(req: DoctorSaveRequest) -> dict[str, Any]:
         calcom_event_type_id=req.calcom_event_type_id,
         doctor_id=req.id,
     )
-    # Resetăm sesiunile active astfel încât promptul de sistem al AI-ului să preia imediat noul medic
     receptionist_agent.sessions.clear()
     return {
         "status": "saved",
@@ -309,8 +325,61 @@ async def reset_session(session_id: str = Query("demo-session")) -> dict[str, st
 
 
 # ============================================================================
-# 5. OMNICHANNEL WEBHOOKS: META WHATSAPP CLOUD API, TELEGRAM & CHATWOOT/TYPEBOT
+# 5. OMNICHANNEL: META WHATSAPP CLOUD API, TELEGRAM BOT & CHATWOOT
 # ============================================================================
+@app.post("/api/omnichannel/configure")
+async def configure_omnichannel_endpoint(req: OmnichannelConfigRequest) -> dict[str, Any]:
+    """Salvează token-urile WhatsApp, Telegram și Chatwoot în .env și înregistrează automat webhook-ul Telegram."""
+    updates: dict[str, str] = {}
+    if req.whatsapp_verify_token.strip():
+        settings.whatsapp_verify_token = req.whatsapp_verify_token.strip()
+        updates["WHATSAPP_VERIFY_TOKEN"] = settings.whatsapp_verify_token
+    if req.whatsapp_access_token.strip():
+        settings.whatsapp_access_token = req.whatsapp_access_token.strip()
+        updates["WHATSAPP_ACCESS_TOKEN"] = settings.whatsapp_access_token
+    if req.whatsapp_phone_number_id.strip():
+        settings.whatsapp_phone_number_id = req.whatsapp_phone_number_id.strip()
+        updates["WHATSAPP_PHONE_NUMBER_ID"] = settings.whatsapp_phone_number_id
+    if req.telegram_bot_token.strip():
+        settings.telegram_bot_token = req.telegram_bot_token.strip()
+        updates["TELEGRAM_BOT_TOKEN"] = settings.telegram_bot_token
+    if req.chatwoot_api_url.strip():
+        settings.chatwoot_api_url = req.chatwoot_api_url.strip().rstrip("/")
+        updates["CHATWOOT_API_URL"] = settings.chatwoot_api_url
+    if req.chatwoot_api_token.strip():
+        settings.chatwoot_api_token = req.chatwoot_api_token.strip()
+        updates["CHATWOOT_API_TOKEN"] = settings.chatwoot_api_token
+
+    if updates:
+        cal_service._persist_to_env_file(updates)
+
+    telegram_webhook_status = None
+    if settings.telegram_bot_token and req.public_webhook_base_url.strip():
+        base_url = req.public_webhook_base_url.strip().rstrip("/")
+        tg_webhook_url = f"{base_url}/api/webhooks/telegram"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                r_tg = await client.post(
+                    f"https://api.telegram.org/bot{settings.telegram_bot_token}/setWebhook",
+                    json={"url": tg_webhook_url},
+                )
+                telegram_webhook_status = r_tg.json()
+        except Exception as exc:
+            telegram_webhook_status = {"ok": False, "error": str(exc)}
+
+    return {
+        "status": "saved",
+        "whatsapp_configured": bool(
+            settings.whatsapp_access_token and settings.whatsapp_phone_number_id
+        ),
+        "telegram_configured": bool(settings.telegram_bot_token),
+        "chatwoot_configured": bool(
+            settings.chatwoot_api_url and settings.chatwoot_api_token
+        ),
+        "telegram_webhook": telegram_webhook_status,
+    }
+
+
 @app.get("/api/webhooks/whatsapp")
 async def verify_whatsapp_webhook(
     hub_mode: str | None = Query(None, alias="hub.mode"),
@@ -325,7 +394,7 @@ async def verify_whatsapp_webhook(
 
 @app.post("/api/webhooks/whatsapp")
 async def receive_whatsapp_webhook(request: Request) -> JSONResponse:
-    """Primește mesajele de pe WhatsApp Cloud API (Meta Free Service Tier) și răspunde automat."""
+    """Primește mesajele text și vocale de pe WhatsApp Cloud API (Meta Free Service Tier) și răspunde automat."""
     body = await request.json()
     try:
         entries = body.get("entry", [])
@@ -371,13 +440,92 @@ async def receive_whatsapp_webhook(request: Request) -> JSONResponse:
     return JSONResponse({"status": "received"})
 
 
+@app.post("/api/webhooks/telegram")
+async def receive_telegram_webhook(request: Request) -> dict[str, Any]:
+    """
+    Webhook oficial pentru Telegram Bot API:
+    - Suportă mesaje text și mesaje vocale (voice notes transcrise cu Groq Whisper)
+    - Răspunde cu text + opțional notă vocală în limba română!
+    """
+    update = await request.json()
+    message = update.get("message") or update.get("edited_message") or {}
+    chat_info = message.get("chat") or {}
+    chat_id = chat_info.get("id")
+    if not chat_id:
+        return {"status": "ignored"}
+
+    user_text = message.get("text", "").strip()
+    is_voice = False
+
+    # Dacă pacientul a trimis un mesaj vocal pe Telegram
+    voice_obj = message.get("voice") or message.get("audio")
+    if not user_text and voice_obj and settings.telegram_bot_token:
+        file_id = voice_obj.get("file_id")
+        if file_id:
+            try:
+                async with httpx.AsyncClient(timeout=15.0) as client:
+                    r_file = await client.get(
+                        f"https://api.telegram.org/bot{settings.telegram_bot_token}/getFile",
+                        params={"file_id": file_id},
+                    )
+                    file_path = r_file.json().get("result", {}).get("file_path")
+                    if file_path:
+                        r_bytes = await client.get(
+                            f"https://api.telegram.org/file/bot{settings.telegram_bot_token}/{file_path}"
+                        )
+                        user_text = await stt_service.transcribe_audio(
+                            audio_bytes=r_bytes.content,
+                            filename="telegram_voice.ogg",
+                            content_type="audio/ogg",
+                        )
+                        is_voice = True
+            except Exception:
+                user_text = ""
+
+    if not user_text:
+        return {"status": "empty"}
+
+    ai_res = await receptionist_agent.chat(
+        session_id=f"tg-{chat_id}",
+        user_message=user_text,
+        channel="Telegram Bot AI",
+    )
+
+    if settings.telegram_bot_token:
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                await client.post(
+                    f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage",
+                    json={"chat_id": chat_id, "text": ai_res["reply"]},
+                )
+                # Dacă pacientul a vorbit vocal, îi trimitem și răspunsul audio în română
+                if is_voice:
+                    mp3_bytes = await tts_service.synthesize_mp3(ai_res["reply"])
+                    await client.post(
+                        f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendAudio",
+                        data={"chat_id": str(chat_id), "title": "Răspuns Vocal AI"},
+                        files={"audio": ("raspuns.mp3", mp3_bytes, "audio/mpeg")},
+                    )
+        except Exception:
+            pass
+
+    return {"status": "replied", "reply": ai_res["reply"]}
+
+
 @app.post("/api/webhooks/chatwoot")
 async def receive_chatwoot_webhook(request: Request) -> dict[str, Any]:
-    """Webhook compatibil cu Chatwoot (Open-Source) și Typebot.io."""
+    """
+    Webhook complet compatibil cu Chatwoot (Cloud / Self-Hosted) și Typebot.io.
+    Când primește un mesaj 'incoming' de la pacient, răspunde prin Agentul AI și
+    trimite mesajul înapoi în conversația Chatwoot prin API.
+    """
     payload = await request.json()
     message_type = payload.get("message_type")
-    content = payload.get("content", "")
-    conversation_id = str(payload.get("conversation", {}).get("id", "chatwoot-1"))
+    content = (payload.get("content") or "").strip()
+    conversation = payload.get("conversation") or {}
+    conversation_id = conversation.get("id") or payload.get("id") or "1"
+    account = payload.get("account") or {}
+    account_id = account.get("id") or "1"
 
     if message_type == "incoming" and content:
         ai_res = await receptionist_agent.chat(
@@ -385,6 +533,30 @@ async def receive_chatwoot_webhook(request: Request) -> dict[str, Any]:
             user_message=content,
             channel="Chatwoot Omnichannel",
         )
+
+        # Dacă utilizatorul a configurat CHATWOOT_API_URL și CHATWOOT_API_TOKEN, trimitem mesajul în Chatwoot
+        if settings.chatwoot_api_url and settings.chatwoot_api_token:
+            cw_endpoint = (
+                f"{settings.chatwoot_api_url.rstrip('/')}/api/v1/accounts/"
+                f"{account_id}/conversations/{conversation_id}/messages"
+            )
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    await client.post(
+                        cw_endpoint,
+                        headers={
+                            "api_access_token": settings.chatwoot_api_token,
+                            "Content-Type": "application/json",
+                        },
+                        json={
+                            "content": ai_res["reply"],
+                            "message_type": "outgoing",
+                            "private": False,
+                        },
+                    )
+            except Exception:
+                pass
+
         return {"status": "replied", "reply": ai_res["reply"]}
 
     return {"status": "ignored"}
