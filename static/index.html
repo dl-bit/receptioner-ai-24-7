@@ -220,9 +220,10 @@
             <div class="font-medium text-emerald-400">2. Meta WhatsApp Cloud API Webhook (0 € Service Tier):</div>
             <code id="waUrlCode" class="text-[11px] text-slate-400 break-all">POST /api/webhooks/whatsapp</code>
           </div>
-          <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-            <div class="font-medium text-purple-400">3. Chatwoot / Typebot Omnichannel Webhook:</div>
-            <code id="cwUrlCode" class="text-[11px] text-slate-400 break-all">POST /api/webhooks/chatwoot</code>
+          <div class="p-2.5 rounded-lg bg-slate-950 border border-emerald-800/60">
+            <div class="font-medium text-emerald-400">3. Widget Propriu 100% Gratuit (Înlocuiește Chatwoot Paid!):</div>
+            <div class="text-[11px] text-slate-400 mb-1">Adaugă această linie pe orice site (WordPress / HTML) pentru bula flotantă cu Voce + Chat:</div>
+            <code id="embedWidgetCode" class="text-[11px] text-amber-300 break-all select-all">&lt;script src="http://localhost:7860/widget.js"&gt;&lt;/script&gt;</code>
           </div>
           <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
             <div class="font-medium text-indigo-400">4. Cal.com Webhook & Keep-Alive Ping:</div>
@@ -460,7 +461,8 @@
       document.getElementById("healthUrlCode").textContent = `${origin}/api/health`;
       document.getElementById("waUrlCode").textContent = `${origin}/api/webhooks/whatsapp`;
       document.getElementById("tgUrlCode").textContent = `${origin}/api/webhooks/telegram`;
-      document.getElementById("cwUrlCode").textContent = `${origin}/api/webhooks/chatwoot`;
+      const embedEl = document.getElementById("embedWidgetCode");
+      if (embedEl) embedEl.textContent = `<script src="${origin}/widget.js"><\/script>`;
 
       checkSystemHealth();
       loadAppointments();

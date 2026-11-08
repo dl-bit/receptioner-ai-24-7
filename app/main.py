@@ -566,6 +566,39 @@ async def receive_chatwoot_webhook(request: Request) -> dict[str, Any]:
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
+@app.get("/widget.js")
+async def serve_embed_widget(request: Request) -> Response:
+    """
+    Generează un Widget Flotant (Chat + Voce AI) 100% Gratuit care înlocuiește Chatwoot Cloud!
+    Poate fi integrat pe orice site cu o singură linie: <script src="https://.../widget.js"></script>
+    """
+    base_url = str(request.base_url).rstrip("/")
+    js_code = f"""
+(function() {{
+  if (document.getElementById('ai-receptionist-widget-root')) return;
+  const root = document.createElement('div');
+  root.id = 'ai-receptionist-widget-root';
+  root.innerHTML = `
+    <div id="ai-rec-window" style="display:none;position:fixed;bottom:90px;right:20px;width:370px;height:560px;max-width:92vw;max-height:80vh;border-radius:16px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.45);z-index:999999;border:1px solid #334155;background:#0f172a;">
+      <iframe src="{base_url}/" allow="microphone; autoplay" style="width:100%;height:100%;border:none;"></iframe>
+    </div>
+    <button id="ai-rec-toggle" style="position:fixed;bottom:20px;right:20px;width:60px;height:60px;border-radius:9999px;background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;border:none;cursor:pointer;box-shadow:0 10px 25px rgba(37,99,235,0.5);z-index:999999;font-size:26px;display:flex;align-items:center;justify-content:center;">
+      🎙️
+    </button>
+  `;
+  document.body.appendChild(root);
+  const btn = document.getElementById('ai-rec-toggle');
+  const win = document.getElementById('ai-rec-window');
+  btn.addEventListener('click', function() {{
+    const isHidden = win.style.display === 'none';
+    win.style.display = isHidden ? 'block' : 'none';
+    btn.textContent = isHidden ? '✕' : '🎙️';
+  }});
+}})();
+"""
+    return Response(content=js_code.strip(), media_type="application/javascript")
+
+
 @app.get("/")
 async def serve_index() -> FileResponse:
     return FileResponse("static/index.html")
