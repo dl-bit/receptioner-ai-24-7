@@ -1,0 +1,109 @@
+version: "3.9"
+
+# ==============================================================================
+# Stack Complet Self-Hosted (Cost 0 €):
+# 1. Recepționer AI 24/7 (FastAPI + Groq + Edge-TTS + Cal.com) -> http://localhost:7860
+# 2. Chatwoot Community Edition (Open-Source CRM + API nelimitat) -> http://localhost:3000
+# 3. PostgreSQL 16 (cu pgvector) + Redis 7 Alpine
+# Pornire: docker compose -f docker-compose.chatwoot.yml up -d
+# ==============================================================================
+
+services:
+  receptioner-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: receptioner-ai-24-7
+    restart: unless-stopped
+    ports:
+      - "7860:7860"
+    env_file:
+      - .env
+    environment:
+      - CHATWOOT_API_URL=http://chatwoot-web:3000
+    depends_on:
+      - chatwoot-web
+
+  chatwoot-web:
+    image: chatwoot/chatwoot:latest
+    container_name: chatwoot-ce-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - RAILS_ENV=production
+      - INSTALLATION_ENV=docker
+      - DEFAULT_LOCALE=ro
+      - FRONTEND_URL=http://localhost:3000
+      - SECRET_KEY_BASE=chatwoot_ce_secret_key_receptioner_ai_2027_secure_token_998877
+      - POSTGRES_HOST=chatwoot-postgres
+      - POSTGRES_USERNAME=postgres
+      - POSTGRES_PASSWORD=chatwoot_pass
+      - POSTGRES_DATABASE=chatwoot_production
+      - REDIS_URL=redis://chatwoot-redis:6379
+      - ENABLE_ACCOUNT_SIGNUP=true
+      - RAILS_LOG_TO_STDOUT=true
+      - USE_INBOX_AVATAR_FOR_BOT=true
+    entrypoint: docker/entrypoints/rails.sh
+    command:
+      - sh
+      - -c
+      - "bundle exec rails db:chatwoot_prepare && bundle exec rails s -p 3000 -b 0.0.0.0"
+    depends_on:
+      - chatwoot-postgres
+      - chatwoot-redis
+    volumes:
+      - chatwoot_storage:/app/storage
+
+  chatwoot-worker:
+    image: chatwoot/chatwoot:latest
+    container_name: chatwoot-ce-worker
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - RAILS_ENV=production
+      - INSTALLATION_ENV=docker
+      - DEFAULT_LOCALE=ro
+      - FRONTEND_URL=http://localhost:3000
+      - SECRET_KEY_BASE=chatwoot_ce_secret_key_receptioner_ai_2027_secure_token_998877
+      - POSTGRES_HOST=chatwoot-postgres
+      - POSTGRES_USERNAME=postgres
+      - POSTGRES_PASSWORD=chatwoot_pass
+      - POSTGRES_DATABASE=chatwoot_production
+      - REDIS_URL=redis://chatwoot-redis:6379
+      - RAILS_LOG_TO_STDOUT=true
+    command:
+      - bundle
+      - exec
+      - sidekiq
+      - -C
+      - config/sidekiq.yml
+    depends_on:
+      - chatwoot-postgres
+      - chatwoot-redis
+    volumes:
+      - chatwoot_storage:/app/storage
+
+  chatwoot-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: chatwoot-ce-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=chatwoot_production
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=chatwoot_pass
+    volumes:
+      - chatwoot_pgdata:/var/lib/postgresql/data
+
+  chatwoot-redis:
+    image: redis:7-alpine
+    container_name: chatwoot-ce-redis
+    restart: unless-stopped
+    volumes:
+      - chatwoot_redis:/data
+
+volumes:
+  chatwoot_storage:
+  chatwoot_pgdata:
+  chatwoot_redis:

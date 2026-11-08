@@ -1,4 +1,12 @@
+# ==============================================================================
+# Render Blueprint (Pe același cont Render):
+# 1. receptioner-ai-24-7 (FastAPI Agent AI Vocal & Text + Cal.com)
+# 2. chatwoot-ce-crm (Chatwoot Community Edition Docker — API Tokens 100% Gratuite)
+# 3. chatwoot-redis (Render Key-Value Free) & chatwoot-db (Render PostgreSQL Free)
+# ==============================================================================
+
 services:
+  # 1. Serverul Principal Recepționer AI 24/7
   - type: web
     name: receptioner-ai-24-7
     runtime: python
@@ -11,5 +19,70 @@ services:
         value: 3.11.9
       - key: GROQ_API_KEY
         sync: false
+      - key: LLM_MODEL
+        value: openai/gpt-oss-120b
       - key: DEFAULT_TTS_VOICE
         value: ro-RO-AlinaNeural
+      - key: CALCOM_API_KEY
+        sync: false
+      - key: CHATWOOT_API_URL
+        sync: false
+      - key: CHATWOOT_API_TOKEN
+        sync: false
+
+  # 2. Chatwoot Community Edition (Open-Source Docker pe același cont Render)
+  - type: web
+    name: chatwoot-ce-crm
+    runtime: image
+    image:
+      url: docker.io/chatwoot/chatwoot:latest
+    plan: free
+    dockerCommand: sh -c "bundle exec rails db:chatwoot_prepare && bundle exec puma -C config/puma.rb"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: RAILS_ENV
+        value: production
+      - key: INSTALLATION_ENV
+        value: docker
+      - key: DEFAULT_LOCALE
+        value: ro
+      - key: ENABLE_ACCOUNT_SIGNUP
+        value: "true"
+      - key: RAILS_LOG_TO_STDOUT
+        value: "true"
+      # Optimizări critice de memorie RAM (Puma single-mode + async jobs în același container)
+      - key: WEB_CONCURRENCY
+        value: "0"
+      - key: RAILS_MAX_THREADS
+        value: "3"
+      - key: MALLOC_ARENA_MAX
+        value: "2"
+      - key: SECRET_KEY_BASE
+        generateValue: true
+      - key: POSTGRES_URI
+        fromDatabase:
+          name: chatwoot-db
+          property: connectionString
+      - key: DATABASE_URL
+        fromDatabase:
+          name: chatwoot-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: chatwoot-redis
+          property: connectionString
+
+  # 3. Redis Gratuit pentru Chatwoot CE pe Render
+  - type: redis
+    name: chatwoot-redis
+    plan: free
+    ipAllowList: []
+
+databases:
+  # 4. PostgreSQL Gratuit pentru Chatwoot CE pe Render
+  - name: chatwoot-db
+    plan: free
+    databaseName: chatwoot_production
+    user: chatwoot

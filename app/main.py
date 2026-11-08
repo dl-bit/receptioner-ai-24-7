@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from app.config import get_doctors_catalog, settings
 from app.services.cal_service import cal_service
+from app.services.chatwoot_service import chatwoot_service
 from app.services.llm_agent import receptionist_agent
 from app.services.storage_service import storage_service
 from app.services.stt_service import stt_service
@@ -367,6 +368,14 @@ async def configure_omnichannel_endpoint(req: OmnichannelConfigRequest) -> dict[
         except Exception as exc:
             telegram_webhook_status = {"ok": False, "error": str(exc)}
 
+    chatwoot_status = None
+    if settings.chatwoot_api_url and settings.chatwoot_api_token:
+        chatwoot_status = await chatwoot_service.verify_and_register_webhook(
+            api_url=settings.chatwoot_api_url,
+            api_token=settings.chatwoot_api_token,
+            webhook_target_url=req.public_webhook_base_url,
+        )
+
     return {
         "status": "saved",
         "whatsapp_configured": bool(
@@ -377,6 +386,7 @@ async def configure_omnichannel_endpoint(req: OmnichannelConfigRequest) -> dict[
             settings.chatwoot_api_url and settings.chatwoot_api_token
         ),
         "telegram_webhook": telegram_webhook_status,
+        "chatwoot_status": chatwoot_status,
     }
 
 
@@ -515,51 +525,12 @@ async def receive_telegram_webhook(request: Request) -> dict[str, Any]:
 @app.post("/api/webhooks/chatwoot")
 async def receive_chatwoot_webhook(request: Request) -> dict[str, Any]:
     """
-    Webhook complet compatibil cu Chatwoot (Cloud / Self-Hosted) și Typebot.io.
-    Când primește un mesaj 'incoming' de la pacient, răspunde prin Agentul AI și
-    trimite mesajul înapoi în conversația Chatwoot prin API.
+    Webhook complet compatibil cu Chatwoot Community Edition (Open-Source Docker) și Typebot.io.
+    Include protecție anti-loop, răspuns automat prin Agentul AI + Cal.com și
+    transfer automat către operator uman (Human Handoff) când pacientul cere un operator.
     """
     payload = await request.json()
-    message_type = payload.get("message_type")
-    content = (payload.get("content") or "").strip()
-    conversation = payload.get("conversation") or {}
-    conversation_id = conversation.get("id") or payload.get("id") or "1"
-    account = payload.get("account") or {}
-    account_id = account.get("id") or "1"
-
-    if message_type == "incoming" and content:
-        ai_res = await receptionist_agent.chat(
-            session_id=f"cw-{conversation_id}",
-            user_message=content,
-            channel="Chatwoot Omnichannel",
-        )
-
-        # Dacă utilizatorul a configurat CHATWOOT_API_URL și CHATWOOT_API_TOKEN, trimitem mesajul în Chatwoot
-        if settings.chatwoot_api_url and settings.chatwoot_api_token:
-            cw_endpoint = (
-                f"{settings.chatwoot_api_url.rstrip('/')}/api/v1/accounts/"
-                f"{account_id}/conversations/{conversation_id}/messages"
-            )
-            try:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    await client.post(
-                        cw_endpoint,
-                        headers={
-                            "api_access_token": settings.chatwoot_api_token,
-                            "Content-Type": "application/json",
-                        },
-                        json={
-                            "content": ai_res["reply"],
-                            "message_type": "outgoing",
-                            "private": False,
-                        },
-                    )
-            except Exception:
-                pass
-
-        return {"status": "replied", "reply": ai_res["reply"]}
-
-    return {"status": "ignored"}
+    return await chatwoot_service.process_webhook(payload)
 
 
 # Montăm interfața web statică
