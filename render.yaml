@@ -39,6 +39,8 @@ services:
     envVars:
       - key: PORT
         value: "3000"
+      - key: POSTGRES_PORT
+        value: "5432"
       - key: NODE_ENV
         value: production
       - key: RAILS_ENV
@@ -51,23 +53,25 @@ services:
         value: "true"
       - key: RAILS_LOG_TO_STDOUT
         value: "true"
-      # Optimizări critice de memorie RAM (Puma single-mode + async jobs în același container)
+      # Optimizări critice de memorie RAM pentru Render Free (512 MB RAM)
       - key: WEB_CONCURRENCY
         value: "0"
       - key: RAILS_MAX_THREADS
         value: "3"
       - key: MALLOC_ARENA_MAX
         value: "2"
+      - key: RUBY_GC_HEAP_GROWTH_FACTOR
+        value: "1.05"
+      - key: RUBY_GC_MALLOC_LIMIT
+        value: "16777216"
+      - key: RUBY_GC_OLDMALLOC_LIMIT
+        value: "16777216"
       - key: SECRET_KEY_BASE
         generateValue: true
       - key: POSTGRES_HOST
         fromDatabase:
           name: chatwoot-db
           property: host
-      - key: POSTGRES_PORT
-        fromDatabase:
-          name: chatwoot-db
-          property: port
       - key: POSTGRES_DATABASE
         fromDatabase:
           name: chatwoot-db
