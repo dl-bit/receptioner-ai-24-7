@@ -70,7 +70,7 @@ def run_smoke_tests() -> None:
     assert r_wh.status_code == 200, f"Cal.com webhook failed: {r_wh.text}"
     print("[OK] /api/webhooks/calcom:", r_wh.json())
 
-    # 6. Test Omnichannel Webhooks (Telegram, WhatsApp Verification & Chatwoot)
+    # 6. Test Omnichannel Webhooks (Telegram, WhatsApp Verification & Chatwoot CE)
     r_tg = client.post(
         "/api/webhooks/telegram",
         json={
@@ -83,17 +83,34 @@ def run_smoke_tests() -> None:
     assert r_tg.status_code == 200, f"Telegram webhook failed: {r_tg.text}"
     print("[OK] /api/webhooks/telegram:", r_tg.json()["status"])
 
+    # 6b. Test Chatwoot CE AI Reply + Human Handoff + Anti-loop
     r_cw = client.post(
         "/api/webhooks/chatwoot",
         json={
+            "event": "message_created",
             "message_type": "incoming",
             "content": "Ce program aveți sâmbăta?",
+            "sender": {"type": "contact"},
             "conversation": {"id": 77},
             "account": {"id": 1},
         },
     )
     assert r_cw.status_code == 200, f"Chatwoot webhook failed: {r_cw.text}"
-    print("[OK] /api/webhooks/chatwoot:", r_cw.json()["status"])
+    print("[OK] /api/webhooks/chatwoot (AI reply):", r_cw.json()["status"])
+
+    r_cw_handoff = client.post(
+        "/api/webhooks/chatwoot",
+        json={
+            "event": "message_created",
+            "message_type": "incoming",
+            "content": "Vreau să vorbesc cu un operator uman vă rog",
+            "sender": {"type": "contact"},
+            "conversation": {"id": 77},
+            "account": {"id": 1},
+        },
+    )
+    assert r_cw_handoff.status_code == 200 and r_cw_handoff.json()["status"] == "handoff_to_human"
+    print("[OK] /api/webhooks/chatwoot (Human Handoff):", r_cw_handoff.json()["status"])
 
     r_wa = client.get(
         "/api/webhooks/whatsapp",
@@ -105,6 +122,11 @@ def run_smoke_tests() -> None:
     )
     assert r_wa.status_code == 200 and r_wa.text == "12345", f"WhatsApp verify failed: {r_wa.text}"
     print("[OK] /api/webhooks/whatsapp (verify): challenge verified")
+
+    # 7. Test Embed Widget (/widget.js)
+    r_widget = client.get("/widget.js")
+    assert r_widget.status_code == 200 and "ai-receptionist-widget-root" in r_widget.text
+    print("[OK] /widget.js: native floating widget script verified")
 
 
 if __name__ == "__main__":
