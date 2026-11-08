@@ -227,3 +227,4 @@ class ChatwootCEService:
 
 
 chatwoot_service = ChatwootCEService()
+

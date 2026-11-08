@@ -132,3 +132,4 @@ Agentul AI are definite 4 unelte principale în `app/services/llm_agent.py`:
    ```powershell
    uv run --with-requirements requirements.txt python test_smoke.py
    ```
+
