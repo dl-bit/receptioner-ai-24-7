@@ -1,15 +1,20 @@
 from datetime import datetime
 from typing import Any
 import httpx
-from app.config import settings, DEFAULT_CLINIC_KNOWLEDGE, get_doctors_catalog
+from app.config import (
+    settings,
+    DEFAULT_CLINIC_KNOWLEDGE,
+    get_doctors_catalog,
+    get_inboxes_catalog,
+)
 
 
 class StorageService:
     """
     Gestionează conexiunea distribuită cu:
-    1. Qdrant Cloud Free Tier (1 GB permanent) pentru căutare în baza de cunoștințe a clinicii (RAG).
+    1. Qdrant Cloud Free Tier (1 GB permanent) pentru căutare în baza de cunoștințe (RAG).
     2. Supabase PostgreSQL Free Tier pentru salvarea jurnalului de conversații (Audit EU AI Act) și a lead-urilor.
-    Funcționează impecabil și fără chei configurate (folosind fallback in-memory sincronizat cu doctors.json).
+    Funcționează impecabil și fără chei configurate (folosind fallback in-memory sincronizat cu doctors.json și inboxes.json).
     """
 
     def __init__(self) -> None:
@@ -30,13 +35,25 @@ class StorageService:
                 self._qdrant_client = None
 
     def _get_live_knowledge(self) -> list[dict[str, Any]]:
-        """Sincronizează secțiunea Echipa Medicală cu medicii actuali din doctors.json."""
+        """Sincronizează baza de cunoștințe cu medicii din doctors.json și specificul fiecărui Inbox din inboxes.json."""
         doctors = get_doctors_catalog()
         docs_text = " ".join(
             f"{d['name']} - {d['specialty']} (ore disponibile: {', '.join(d.get('default_slots', []))})."
             for d in doctors
         )
         live_items: list[dict[str, Any]] = []
+
+        # Adăugăm dinamic cunoștințele fiecărui Inbox din inboxes.json (ex: dev.avanz.ro)
+        for idx, inbox in enumerate(get_inboxes_catalog(), start=200):
+            live_items.append(
+                {
+                    "id": idx,
+                    "category": f"inbox_{inbox.get('id', idx)}",
+                    "title": f"{inbox.get('name', 'Inbox')} ({inbox.get('domain', '')})",
+                    "content": f"{inbox.get('site_specificity', '')} Mesaj întâmpinare: {inbox.get('welcome_message', '')}",
+                }
+            )
+
         for item in self.local_knowledge:
             if item.get("category") == "medici":
                 live_items.append(
@@ -51,7 +68,8 @@ class StorageService:
 
     def search_knowledge(self, query: str) -> list[dict[str, Any]]:
         """
-        Caută informații despre prețuri, servicii, medici și program în baza de cunoștințe.
+        Caută informații despre modulele AvanzCRM (dev.avanz.ro), specificul fiecărui Inbox,
+        prețuri, servicii, specialiști și program în baza de cunoștințe.
         """
         knowledge = self._get_live_knowledge()
         query_words = [

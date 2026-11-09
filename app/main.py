@@ -8,7 +8,12 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from app.config import get_doctors_catalog, settings
+from app.config import (
+    get_doctors_catalog,
+    get_inboxes_catalog,
+    resolve_inbox_profile,
+    settings,
+)
 from app.services.cal_service import cal_service
 from app.services.chatwoot_service import chatwoot_service
 from app.services.llm_agent import receptionist_agent
@@ -17,12 +22,12 @@ from app.services.stt_service import stt_service
 from app.services.tts_service import tts_service
 
 app = FastAPI(
-    title="Recepționer & Call-Center AI 24/7 (Voce + WhatsApp + Telegram + Chatwoot + Cal.com)",
+    title="Recepționer & Call-Center AI 24/7 (Multi-Inbox Chatwoot + dev.avanz.ro + Voce + Cal.com)",
     description=(
-        "Arhitectură Distribuită Zero-Cost pe Hugging Face Spaces (16 GB RAM) + "
+        "Arhitectură Distribuită Zero-Cost + Multi-Inbox Personalizat Chatwoot (dev.avanz.ro) + "
         "Groq Whisper/LLM + Edge-TTS Română + Cal.com (Google Calendar Sync) + Omnichannel"
     ),
-    version="1.3.0",
+    version="1.4.0",
 )
 
 app.add_middleware(
@@ -40,6 +45,8 @@ class ChatRequest(BaseModel):
     voice: str = "ro-RO-AlinaNeural"
     generate_audio: bool = True
     channel: str = "Web Voice/Chat"
+    inbox_profile_id: str = ""
+    inbox_id: str = ""
 
 
 class TTSRequest(BaseModel):
@@ -52,9 +59,9 @@ class ManualBookingRequest(BaseModel):
     phone: str
     date: str
     time: str
-    service: str = "Consultație + Plan Tratament"
+    service: str = "Demo Live AvanzCRM / Consultanță"
     doctor: str | None = None
-    email: str = "pacient@demosmile.ro"
+    email: str = "contact@avanz.ro"
 
 
 class CalComConfigRequest(BaseModel):
@@ -83,16 +90,37 @@ class DoctorSaveRequest(BaseModel):
     calcom_event_type_id: str = ""
 
 
+class InboxProfileSaveRequest(BaseModel):
+    id: str = ""
+    inbox_id: str = ""
+    name: str
+    domain: str = "dev.avanz.ro"
+    welcome_message: str = ""
+    handoff_message: str = ""
+    site_specificity: str = ""
+    is_default: bool = False
+    quick_prompts: list[str] = []
+
+
+class InboxGenerateRequest(BaseModel):
+    name: str
+    domain: str = "dev.avanz.ro"
+    site_specificity: str = ""
+    inbox_id: str = ""
+
+
 # ============================================================================
 # 1. HEALTHCHECK & KEEP-ALIVE (Pentru UptimeRobot / cron-job.org la 10 minute)
 # ============================================================================
 @app.get("/api/health")
 async def health_check() -> dict[str, Any]:
     tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+    inboxes = get_inboxes_catalog()
+    default_inbox = resolve_inbox_profile()
     return {
         "status": "ok",
         "service": "Receptioner & Call-Center AI 24/7",
-        "clinic_name": settings.clinic_name,
+        "clinic_name": default_inbox.get("name", settings.clinic_name),
         "timestamp": datetime.now().isoformat(),
         "groq_configured": bool(settings.groq_api_key),
         "llm_model": settings.llm_model,
@@ -111,22 +139,31 @@ async def health_check() -> dict[str, Any]:
         "default_voice": settings.default_tts_voice,
         "supported_voices": tts_service.SUPPORTED_VOICES,
         "doctors": get_doctors_catalog(),
+        "inboxes": inboxes,
+        "active_inbox": default_inbox,
         "tomorrow_date": tomorrow,
     }
 
 
 # ============================================================================
-# 2. TEXT CHAT + SINTEZĂ VOCALĂ ÎN ROMÂNĂ (Web Widget / Demo)
+# 2. TEXT CHAT + SINTEZĂ VOCALĂ ÎN ROMÂNĂ (Web Widget / Demo Multi-Inbox)
 # ============================================================================
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest) -> dict[str, Any]:
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="Mesajul nu poate fi gol.")
 
+    inbox_profile = resolve_inbox_profile(
+        inbox_id=req.inbox_id,
+        profile_id=req.inbox_profile_id,
+        auto_register_new=False,
+    )
+
     result = await receptionist_agent.chat(
-        session_id=req.session_id,
+        session_id=f"{req.session_id}-{inbox_profile.get('id', 'default')}",
         user_message=req.message,
         channel=req.channel,
+        inbox_profile=inbox_profile,
     )
 
     audio_b64 = None
@@ -143,6 +180,7 @@ async def chat_endpoint(req: ChatRequest) -> dict[str, Any]:
         "reply": result["reply"],
         "tools_used": result["tools_used"],
         "mode": result["mode"],
+        "inbox_profile": inbox_profile,
         "audio_base64": audio_b64,
         "appointments": result["appointments"],
     }
@@ -156,10 +194,16 @@ async def voice_turn_endpoint(
     audio: UploadFile = File(...),
     session_id: str = Form("demo-voice-session"),
     voice: str = Form("ro-RO-AlinaNeural"),
+    inbox_profile_id: str = Form(""),
 ) -> dict[str, Any]:
     audio_bytes = await audio.read()
     if not audio_bytes:
         raise HTTPException(status_code=400, detail="Fișierul audio este gol.")
+
+    inbox_profile = resolve_inbox_profile(
+        profile_id=inbox_profile_id,
+        auto_register_new=False,
+    )
 
     # 1. Transcriere cu Groq Whisper (sau fallback demo)
     transcript = await stt_service.transcribe_audio(
@@ -169,13 +213,14 @@ async def voice_turn_endpoint(
     )
 
     if not transcript:
-        transcript = "Bună ziua, aveți loc mâine la o consultație?"
+        transcript = "Bună ziua, ce module oferă AvanzCRM pe dev.avanz.ro?"
 
     # 2. Răspuns de la Agentul AI + Tool Calling (Cal.com / RAG)
     result = await receptionist_agent.chat(
-        session_id=session_id,
+        session_id=f"{session_id}-{inbox_profile.get('id', 'default')}",
         user_message=transcript,
-        channel="Voice AI WebRTC",
+        channel=f"Voice AI ({inbox_profile.get('domain', 'Web')})",
+        inbox_profile=inbox_profile,
     )
 
     # 3. Sinteză vocală neurală în limba română (Edge-TTS Gratuit)
@@ -193,6 +238,7 @@ async def voice_turn_endpoint(
         "reply": result["reply"],
         "tools_used": result["tools_used"],
         "mode": result["mode"],
+        "inbox_profile": inbox_profile,
         "audio_base64": audio_b64,
         "appointments": result["appointments"],
     }
@@ -205,7 +251,7 @@ async def tts_endpoint(req: TTSRequest) -> Response:
 
 
 # ============================================================================
-# 4. CALENDAR, MEDICI & PROGRAMĂRI LIVE (Cal.com + Google Calendar Sync)
+# 4. CALENDAR, MEDICI/CONSULTANȚI & PROGRAMĂRI LIVE (Cal.com + Google Calendar)
 # ============================================================================
 @app.get("/api/doctors")
 async def list_doctors_endpoint() -> dict[str, Any]:
@@ -321,16 +367,70 @@ async def receive_calcom_webhook(request: Request) -> dict[str, Any]:
 
 @app.post("/api/reset-session")
 async def reset_session(session_id: str = Query("demo-session")) -> dict[str, str]:
-    receptionist_agent.reset_session(session_id)
+    receptionist_agent.sessions.clear()
     return {"status": "reset", "session_id": session_id}
 
 
 # ============================================================================
-# 5. OMNICHANNEL: META WHATSAPP CLOUD API, TELEGRAM BOT & CHATWOOT
+# 5. CHATWOOT MULTI-INBOX PERSONALIZATION (dev.avanz.ro & Orice Inbox Nou)
+# ============================================================================
+@app.get("/api/chatwoot/inboxes")
+async def list_chatwoot_inboxes() -> dict[str, Any]:
+    inboxes = get_inboxes_catalog()
+    return {
+        "inboxes": inboxes,
+        "active_inbox": resolve_inbox_profile(),
+        "chatwoot_configured": bool(
+            settings.chatwoot_api_url and settings.chatwoot_api_token
+        ),
+    }
+
+
+@app.post("/api/chatwoot/inboxes")
+async def save_chatwoot_inbox(req: InboxProfileSaveRequest) -> dict[str, Any]:
+    return await chatwoot_service.save_or_update_inbox_profile(
+        name=req.name,
+        domain=req.domain,
+        welcome_message=req.welcome_message,
+        handoff_message=req.handoff_message,
+        site_specificity=req.site_specificity,
+        inbox_id=req.inbox_id,
+        profile_id=req.id,
+        is_default=req.is_default,
+        quick_prompts=req.quick_prompts,
+    )
+
+
+@app.delete("/api/chatwoot/inboxes/{profile_id}")
+async def delete_chatwoot_inbox(profile_id: str) -> dict[str, Any]:
+    inboxes = chatwoot_service.delete_inbox_profile(profile_id)
+    return {"status": "deleted", "inboxes": inboxes}
+
+
+@app.post("/api/chatwoot/inboxes/generate")
+async def generate_chatwoot_inbox_template(req: InboxGenerateRequest) -> dict[str, Any]:
+    """Generează automat mesajele personalizate și promptul AI pentru un Inbox nou în funcție de specificul site-ului."""
+    generated = await receptionist_agent.generate_inbox_profile_with_ai(
+        name=req.name,
+        domain=req.domain,
+        site_specificity=req.site_specificity,
+        inbox_id=req.inbox_id,
+    )
+    return {"status": "generated", "template": generated}
+
+
+@app.post("/api/chatwoot/inboxes/sync")
+async def sync_chatwoot_inboxes_endpoint() -> dict[str, Any]:
+    """Sincronizează Inbox-urile din Chatwoot și actualizează mesajele lor de întâmpinare (greeting_message)."""
+    return await chatwoot_service.sync_inboxes_from_chatwoot()
+
+
+# ============================================================================
+# 6. OMNICHANNEL: META WHATSAPP CLOUD API, TELEGRAM BOT & CHATWOOT
 # ============================================================================
 @app.post("/api/omnichannel/configure")
 async def configure_omnichannel_endpoint(req: OmnichannelConfigRequest) -> dict[str, Any]:
-    """Salvează token-urile WhatsApp, Telegram și Chatwoot în .env și înregistrează automat webhook-ul Telegram."""
+    """Salvează token-urile WhatsApp, Telegram și Chatwoot în .env și înregistrează automat webhook-urile."""
     updates: dict[str, str] = {}
     if req.whatsapp_verify_token.strip():
         settings.whatsapp_verify_token = req.whatsapp_verify_token.strip()
@@ -387,6 +487,7 @@ async def configure_omnichannel_endpoint(req: OmnichannelConfigRequest) -> dict[
         ),
         "telegram_webhook": telegram_webhook_status,
         "chatwoot_status": chatwoot_status,
+        "inboxes": get_inboxes_catalog(),
     }
 
 
@@ -525,9 +626,11 @@ async def receive_telegram_webhook(request: Request) -> dict[str, Any]:
 @app.post("/api/webhooks/chatwoot")
 async def receive_chatwoot_webhook(request: Request) -> dict[str, Any]:
     """
-    Webhook complet compatibil cu Chatwoot Community Edition (Open-Source Docker) și Typebot.io.
-    Include protecție anti-loop, răspuns automat prin Agentul AI + Cal.com și
-    transfer automat către operator uman (Human Handoff) când pacientul cere un operator.
+    Webhook Multi-Inbox complet compatibil cu Chatwoot Community Edition și Cloud:
+    - Detectează Inbox-ul (după inbox_id, nume sau URL referer ex: dev.avanz.ro)
+    - La 'conversation_created' trimite automat mesajul de întâmpinare personalizat al acelui Inbox
+    - La 'message_created' răspunde prin Agentul AI adaptat la specificul acelui Inbox + Cal.com
+    - Include protecție anti-loop și transfer automat către operator uman (Human Handoff).
     """
     payload = await request.json()
     return await chatwoot_service.process_webhook(payload)
@@ -538,12 +641,13 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 @app.get("/widget.js")
-async def serve_embed_widget(request: Request) -> Response:
+async def serve_embed_widget(request: Request, inbox: str = Query("")) -> Response:
     """
-    Generează un Widget Flotant (Chat + Voce AI) 100% Gratuit care înlocuiește Chatwoot Cloud!
-    Poate fi integrat pe orice site cu o singură linie: <script src="https://.../widget.js"></script>
+    Generează un Widget Flotant (Chat + Voce AI) 100% Gratuit care poate primi și parametrul ?inbox=inbox-avanz-main!
+    Poate fi integrat pe dev.avanz.ro sau orice site cu: <script src="https://.../widget.js?inbox=inbox-avanz-main"></script>
     """
     base_url = str(request.base_url).rstrip("/")
+    iframe_url = f"{base_url}/?inbox={inbox}" if inbox else f"{base_url}/"
     js_code = f"""
 (function() {{
   if (document.getElementById('ai-receptionist-widget-root')) return;
@@ -551,7 +655,7 @@ async def serve_embed_widget(request: Request) -> Response:
   root.id = 'ai-receptionist-widget-root';
   root.innerHTML = `
     <div id="ai-rec-window" style="display:none;position:fixed;bottom:90px;right:20px;width:370px;height:560px;max-width:92vw;max-height:80vh;border-radius:16px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.45);z-index:999999;border:1px solid #334155;background:#0f172a;">
-      <iframe src="{base_url}/" allow="microphone; autoplay" style="width:100%;height:100%;border:none;"></iframe>
+      <iframe src="{iframe_url}" allow="microphone; autoplay" style="width:100%;height:100%;border:none;"></iframe>
     </div>
     <button id="ai-rec-toggle" style="position:fixed;bottom:20px;right:20px;width:60px;height:60px;border-radius:9999px;background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;border:none;cursor:pointer;box-shadow:0 10px 25px rgba(37,99,235,0.5);z-index:999999;font-size:26px;display:flex;align-items:center;justify-content:center;">
       🎙️

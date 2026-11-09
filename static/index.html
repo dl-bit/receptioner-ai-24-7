@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Recepționer & Call-Center AI 24/7 (Voce + WhatsApp + Cal.com)</title>
+  <title>Asistent & Call-Center AI 24/7 — Multi-Inbox Chatwoot (dev.avanz.ro + Cal.com)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @keyframes pulse-ring {
@@ -26,19 +26,36 @@
           🎙️
         </div>
         <div>
-          <div class="flex items-center gap-2">
-            <h1 id="clinicTitle" class="font-bold text-lg text-white">Clinica Stomatologică Demo Smile</h1>
+          <div class="flex flex-wrap items-center gap-2">
+            <h1 id="clinicTitle" class="font-bold text-lg text-white">AvanzCRM — Consultanță & Demo (dev.avanz.ro)</h1>
+            <span id="activeDomainBadge" class="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 font-mono">
+              dev.avanz.ro
+            </span>
             <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium">
-              24/7 AI Activ
+              24/7 Multi-Inbox AI
             </span>
           </div>
           <p class="text-xs text-slate-400">
-            Stack: WebRTC Voice • Groq Whisper & LLM • Edge-TTS Română (0 €) • Cal.com + Google Calendar Sync
+            Stack: Chatwoot Multi-Inbox Personalizat • Groq Whisper & LLM • Edge-TTS Română • Cal.com + Google Calendar
           </p>
         </div>
       </div>
 
       <div class="flex flex-wrap items-center gap-2 text-xs">
+        <select
+          id="activeInboxSelector"
+          onchange="switchActiveInbox(this.value)"
+          class="bg-indigo-950/90 border border-indigo-600/60 text-indigo-200 rounded-lg px-2.5 py-1.5 font-medium focus:outline-none focus:border-blue-400"
+          title="Selectează Inbox-ul Chatwoot pentru a testa mesajele personalizate"
+        >
+          <option value="inbox-avanz-main">📥 Inbox: AvanzCRM (dev.avanz.ro)</option>
+        </select>
+        <button
+          onclick="toggleInboxesModal()"
+          class="px-2.5 py-1.5 rounded-lg bg-purple-600/25 hover:bg-purple-600/40 border border-purple-500/50 text-purple-200 font-medium transition"
+        >
+          ✨ Mesaje Inbox-uri
+        </button>
         <span id="llmBadge" class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">
           Mod: Verificare...
         </span>
@@ -58,7 +75,7 @@
 
   <!-- EU AI Act Art. 50 Transparency Notice -->
   <div class="bg-indigo-950/60 border-b border-indigo-800/50 text-indigo-200 text-xs py-1.5 px-4 text-center">
-    🛡️ <strong>Conformitate EU AI Act (Art. 50):</strong> Interacționați cu un sistem automatizat de Inteligență Artificială. Toate programările sunt sincronizate cu Cal.com & Google Calendar.
+    🛡️ <strong>Conformitate EU AI Act (Art. 50):</strong> Interacționați cu un sistem automatizat de Inteligență Artificială personalizat pe fiecare Inbox Chatwoot (ex: <code>dev.avanz.ro</code>).
   </div>
 
   <!-- Main Content Grid -->
@@ -70,10 +87,10 @@
       <div class="p-5 bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border-b border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
           <h2 class="text-base font-semibold text-white flex items-center gap-2">
-            <span>Vorbește în Română cu Recepționerul AI</span>
+            <span>Vorbește sau Scrie în Română (Personalizat per Inbox)</span>
           </h2>
           <p id="voiceStatusText" class="text-xs text-slate-400 mt-0.5">
-            Apasă pe microfon și spune: „Bună ziua, ce ore libere are Dr. Elena Dumitrescu mâine?”
+            Inbox activ: <strong id="activeInboxLabel" class="text-blue-300">AvanzCRM (dev.avanz.ro)</strong> — Apasă pe microfon sau testează întrebările rapide!
           </p>
         </div>
 
@@ -89,30 +106,14 @@
         </div>
       </div>
 
-      <!-- Quick Scenario Prompts for Demo -->
-      <div class="px-4 py-2.5 bg-slate-950/60 border-b border-slate-800 flex flex-wrap gap-1.5 items-center">
-        <span class="text-[11px] text-slate-400 mr-1">Scenarii rapide Cal.com:</span>
-        <button onclick="sendQuickPrompt('Bună ziua! Ce ore libere aveți mâine pentru o consultație?')" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 hover:bg-blue-600/30 hover:border-blue-500/50 border border-slate-700 text-slate-200 transition">
-          📅 Verifică ore libere mâine
-        </button>
-        <button onclick="sendQuickPrompt('Vreau să mă programez mâine la ora 16:30 la Dr. Elena Dumitrescu pentru detartraj, pe numele Popescu Vlad, telefon 0722999888')" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 hover:bg-emerald-600/30 hover:border-emerald-500/50 border border-slate-700 text-slate-200 transition">
-          ✅ Programează mâine la 16:30
-        </button>
-        <button onclick="sendQuickPrompt('Cât costă un implant dentar la Dr. Andrei Ionescu și acceptați plata în rate?')" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 hover:bg-purple-600/30 hover:border-purple-500/50 border border-slate-700 text-slate-200 transition">
-          🦷 Implant & Plată în rate
-        </button>
+      <!-- Quick Scenario Prompts for Active Inbox -->
+      <div class="px-4 py-2.5 bg-slate-950/60 border-b border-slate-800 flex flex-wrap gap-1.5 items-center" id="quickPromptsContainer">
+        <!-- Populated dynamically based on active Inbox -->
       </div>
 
       <!-- Chat Messages Container -->
       <div id="chatContainer" class="flex-1 p-4 space-y-4 overflow-y-auto max-h-[450px] min-h-[350px]">
-        <div class="flex items-start gap-3">
-          <div class="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-sm">
-            🤖
-          </div>
-          <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%] text-sm text-slate-200">
-            Bună ziua! Sunt asistentul virtual AI al <strong>Clinicii Stomatologice Demo Smile</strong>, conectat la sistemul de programări <strong>Cal.com & Google Calendar</strong>. Vă pot verifica instantaneu orele libere ale medicilor și vă pot înregistra programarea. Apăsați pe microfon sau scrieți-mi mai jos!
-          </div>
-        </div>
+        <!-- Populated dynamically with active Inbox welcome_message -->
       </div>
 
       <!-- Hidden Audio Player for Edge-TTS Output -->
@@ -123,7 +124,7 @@
         <input
           id="chatInput"
           type="text"
-          placeholder="Scrie un mesaj în română (sau folosește microfonul de mai sus)..."
+          placeholder="Scrie un mesaj pentru inbox-ul selectat (ex: dev.avanz.ro)..."
           class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
         />
         <label class="flex items-center gap-1.5 text-xs text-slate-400 px-2 cursor-pointer select-none">
@@ -140,8 +141,29 @@
       </form>
     </section>
 
-    <!-- Right Column: Live Cal.com / Google Calendar Sync + Omnichannel Status (5 cols) -->
+    <!-- Right Column: Live Cal.com / Google Calendar Sync + Omnichannel & Multi-Inbox Status (5 cols) -->
     <section class="lg:col-span-5 flex flex-col gap-6">
+
+      <!-- Chatwoot Multi-Inbox Personalization Summary Card -->
+      <div class="bg-slate-900 border border-purple-800/50 rounded-2xl p-5 shadow-xl space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 class="font-semibold text-white text-sm flex items-center gap-2">
+              📥 Chatwoot Multi-Inbox: Mesaje Personalizate pe Site
+            </h3>
+            <p class="text-xs text-slate-400">
+              Fiecare Inbox nou din Chatwoot primește propriul mesaj de bun venit, Handoff și instrucțiuni AI
+            </p>
+          </div>
+          <button onclick="toggleInboxesModal()" class="text-xs px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-semibold transition">
+            ⚙️ Configurează Inbox-uri
+          </button>
+        </div>
+
+        <div id="activeInboxCardInfo" class="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1.5">
+          <!-- Populated by JS -->
+        </div>
+      </div>
 
       <!-- Live Calendar & Slots Card -->
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
@@ -151,12 +173,12 @@
               📅 CRM & Calendar (Cal.com + Google Calendar)
             </h3>
             <p id="providerSubtitle" class="text-xs text-slate-400">
-              Verificare ore libere medici & sincronizare bidirecțională
+              Programări Demo Live AvanzCRM & Consultanță sincronizate bidirecțional
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-1.5">
             <button onclick="toggleDoctorsModal()" class="text-xs px-2.5 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 font-medium transition">
-              👨‍⚕️ Medici & Orare
+              👨‍⚕️ Specialiști & Orare
             </button>
             <button onclick="toggleCalModal()" class="text-xs px-2.5 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 font-medium transition">
               ⚙️ Cal.com API
@@ -170,7 +192,7 @@
         <!-- Doctor & Date Filter Bar -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
           <select id="doctorFilter" onchange="loadAppointments()" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500">
-            <option value="">👨‍⚕️ Toți medicii clinicii</option>
+            <option value="">👨‍⚕️ Toți specialiștii / consultanții</option>
           </select>
           <input
             type="date"
@@ -196,7 +218,7 @@
           <span>Programări active înregistrate:</span>
           <span id="totalBookingsCount" class="font-mono text-slate-300">0</span>
         </div>
-        <div class="space-y-2.5 max-h-[260px] overflow-y-auto pr-1" id="appointmentsList">
+        <div class="space-y-2.5 max-h-[220px] overflow-y-auto pr-1" id="appointmentsList">
           <!-- Populated by JS -->
         </div>
       </div>
@@ -212,24 +234,22 @@
           </button>
         </div>
         <div class="text-xs text-slate-300 space-y-2">
-          <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-            <div class="font-medium text-sky-400">1. Telegram Bot Webhook (Text + Voce AI):</div>
-            <code id="tgUrlCode" class="text-[11px] text-slate-400 break-all">POST /api/webhooks/telegram</code>
-          </div>
-          <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-            <div class="font-medium text-emerald-400">2. Meta WhatsApp Cloud API Webhook (0 € Service Tier):</div>
-            <code id="waUrlCode" class="text-[11px] text-slate-400 break-all">POST /api/webhooks/whatsapp</code>
+          <div class="p-2.5 rounded-lg bg-slate-950 border border-purple-800/60">
+            <div class="font-medium text-purple-400">1. Webhook Chatwoot Multi-Inbox (dev.avanz.ro & alte site-uri):</div>
+            <div class="text-[11px] text-slate-400 mb-0.5">Activează evenimentele <code>conversation_created</code> și <code>message_created</code> în Chatwoot:</div>
+            <code id="cwUrlCode" class="text-[11px] text-amber-300 break-all select-all">POST /api/webhooks/chatwoot</code>
           </div>
           <div class="p-2.5 rounded-lg bg-slate-950 border border-emerald-800/60">
-            <div class="font-medium text-emerald-400">3. Widget Propriu 100% Gratuit (Înlocuiește Chatwoot Paid!):</div>
-            <div class="text-[11px] text-slate-400 mb-1">Adaugă această linie pe orice site (WordPress / HTML) pentru bula flotantă cu Voce + Chat:</div>
-            <code id="embedWidgetCode" class="text-[11px] text-amber-300 break-all select-all">&lt;script src="http://localhost:7860/widget.js"&gt;&lt;/script&gt;</code>
+            <div class="font-medium text-emerald-400">2. Widget Flotant Direct pe Inbox (Voce + Chat AI):</div>
+            <code id="embedWidgetCode" class="text-[11px] text-amber-300 break-all select-all">&lt;script src="http://localhost:7860/widget.js?inbox=inbox-avanz-main"&gt;&lt;/script&gt;</code>
           </div>
           <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-            <div class="font-medium text-indigo-400">4. Cal.com Webhook & Keep-Alive Ping:</div>
-            <code id="calWebhookUrlCode" class="text-[11px] text-slate-400 break-all">POST /api/webhooks/calcom</code>
+            <div class="font-medium text-sky-400">3. Telegram & WhatsApp & Cal.com Webhooks:</div>
+            <code id="tgUrlCode" class="text-[11px] text-slate-400 break-all">POST /api/webhooks/telegram</code>
             <span class="text-slate-600 mx-1">|</span>
-            <code id="healthUrlCode" class="text-[11px] text-slate-400 break-all">GET /api/health</code>
+            <code id="waUrlCode" class="text-[11px] text-slate-400 break-all">POST /api/webhooks/whatsapp</code>
+            <span class="text-slate-600 mx-1">|</span>
+            <code id="calWebhookUrlCode" class="text-[11px] text-slate-400 break-all">POST /api/webhooks/calcom</code>
           </div>
         </div>
       </div>
@@ -238,16 +258,167 @@
 
   </main>
 
-  <!-- Modal Administrare Medici & Orare (doctors.json + Cal.com Event Type per Medic) -->
+  <!-- Modal Administrare Mesaje Personalizate per Inbox Chatwoot (inboxes.json) -->
+  <div id="inboxesModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            📥 Mesaje Personalizate pentru Fiecare Inbox Chatwoot (ex: <code>dev.avanz.ro</code>)
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Configurează mesajul de întâmpinare (<code>welcome_message</code>), mesajul de transfer operator și specificul site-ului pentru fiecare Inbox!
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            onclick="syncChatwootInboxes()"
+            id="syncCwInboxesBtn"
+            class="text-xs px-3 py-1.5 rounded-xl bg-indigo-600/25 hover:bg-indigo-600/40 border border-indigo-500/50 text-indigo-200 font-medium transition"
+          >
+            🔄 Sincronizează din Chatwoot
+          </button>
+          <button onclick="toggleInboxesModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
+        </div>
+      </div>
+
+      <div id="inboxSyncNotice" class="hidden p-3 rounded-xl text-xs"></div>
+
+      <!-- Lista Inbox-urilor Existente -->
+      <div class="space-y-2.5" id="inboxesManagerList">
+        <!-- Populated by JS -->
+      </div>
+
+      <!-- Formular Adăugare / Editare Inbox & Generator Automat după Specificul Site-ului -->
+      <form onsubmit="saveInboxForm(event)" class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3 text-xs">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="font-semibold text-purple-400" id="inboxFormTitle">
+            ➕ Adaugă Inbox Nou sau Selectează unul de mai sus pentru Editare
+          </div>
+          <button
+            type="button"
+            onclick="generateInboxWithAI()"
+            id="genInboxAiBtn"
+            class="px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold shadow transition"
+          >
+            ✨ Generează Automat Mesajele după Specificul Site-ului
+          </button>
+        </div>
+
+        <input type="hidden" id="inboxProfileIdInput" value="" />
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-slate-300 mb-1">Nume Inbox / Site:</label>
+            <input
+              type="text"
+              id="inboxNameInput"
+              placeholder="Ex: AvanzCRM Vânzări (dev.avanz.ro)"
+              required
+              class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+            />
+          </div>
+          <div>
+            <label class="block text-slate-300 mb-1">Domeniu Site (pt. auto-detecție):</label>
+            <input
+              type="text"
+              id="inboxDomainInput"
+              placeholder="Ex: dev.avanz.ro"
+              value="dev.avanz.ro"
+              required
+              class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-purple-500"
+            />
+          </div>
+          <div>
+            <label class="block text-slate-300 mb-1">Chatwoot Inbox ID (ex: 1, 2, 3):</label>
+            <input
+              type="text"
+              id="inboxCwIdInput"
+              placeholder="Ex: 1 (din Chatwoot)"
+              class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-purple-500"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 mb-1">
+            Specificul Site-ului / Baza de Cunoștințe a acestui Inbox (folosită de AI când răspunde):
+          </label>
+          <textarea
+            id="inboxSpecificityInput"
+            rows="3"
+            placeholder="Descrie pe scurt ce face acest site / modul (ex: Platforma AvanzCRM pe dev.avanz.ro - ERP, Catalog SKU, Trasee GPS agenți, e-Factura ANAF & SmartBill...). Poți apăsa pe butonul '✨ Generează Automat' de mai sus!"
+            required
+            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+          ></textarea>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 mb-1">
+            👋 Mesaj de Bun Venit Personalizat (<code>welcome_message</code> — trimis automat la deschiderea conversației în Chatwoot):
+          </label>
+          <textarea
+            id="inboxWelcomeInput"
+            rows="2"
+            placeholder="Bună ziua! 👋 Bine ați venit pe dev.avanz.ro! Sunt asistentul virtual AI..."
+            required
+            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-emerald-200 focus:outline-none focus:border-purple-500"
+          ></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 mb-1">
+              🤝 Mesaj Preluare Operator Uman (<code>handoff_message</code>):
+            </label>
+            <input
+              type="text"
+              id="inboxHandoffInput"
+              placeholder="Vă transfer imediat către un consultant tehnic AvanzCRM..."
+              class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+            />
+          </div>
+          <div>
+            <label class="block text-slate-300 mb-1">
+              ⚡ Întrebări rapide sugerate (separate prin <code>|</code>):
+            </label>
+            <input
+              type="text"
+              id="inboxPromptsInput"
+              placeholder="Ce module are dev.avanz.ro? | Cum funcționează e-Factura? | Vreau un Demo Live"
+              class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-purple-500"
+            />
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
+          <label class="flex items-center gap-2 text-slate-300 cursor-pointer">
+            <input type="checkbox" id="inboxDefaultCheckbox" class="accent-purple-500 rounded" />
+            Setează ca Inbox Principal (Default)
+          </label>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="clearInboxForm()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300">
+              Resetează Formular
+            </button>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold transition">
+              💾 Salvează Mesaje Inbox & Sincronizează
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Administrare Medici / Specialiști & Orare (doctors.json + Cal.com Event Type) -->
   <div id="doctorsModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div>
           <h3 class="text-base font-bold text-white flex items-center gap-2">
-            👨‍⚕️ Administrare Medici, Orare & Calendare Cal.com
+            👨‍⚕️ Administrare Specialiști / Consultanți & Calendare Cal.com
           </h3>
           <p class="text-xs text-slate-400 mt-0.5">
-            Adaugă medici noi sau modifică orele libere și Event Type-ul Cal.com al fiecărui medic (salvat în <code>doctors.json</code>)
+            Adaugă consultanți/specialiști noi sau modifică orele libere și Event Type-ul Cal.com (salvat în <code>doctors.json</code>)
           </p>
         </div>
         <button onclick="toggleDoctorsModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
@@ -258,18 +429,18 @@
         <!-- Populated by JS -->
       </div>
 
-      <!-- Formular Adăugare / Modificare Medic -->
+      <!-- Formular Adăugare / Modificare Specialist -->
       <form onsubmit="saveDoctorForm(event)" class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3 text-xs">
-        <div class="font-semibold text-emerald-400" id="docFormTitle">➕ Adaugă Medic Nou sau Selectează unul de mai sus pentru Editare</div>
+        <div class="font-semibold text-emerald-400" id="docFormTitle">➕ Adaugă Specialist/Consultant Nou sau Selectează unul pentru Editare</div>
         <input type="hidden" id="docIdInput" value="" />
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="block text-slate-300 mb-1">Nume Medic:</label>
-            <input type="text" id="docNameInput" placeholder="Ex: Dr. Maria Vasilescu" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500" />
+            <label class="block text-slate-300 mb-1">Nume Consultant / Specialist:</label>
+            <input type="text" id="docNameInput" placeholder="Ex: Alexandru Popa (Consultant ERP)" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500" />
           </div>
           <div>
-            <label class="block text-slate-300 mb-1">Specialitate & Servicii:</label>
-            <input type="text" id="docSpecInput" placeholder="Ex: Parodontologie & Laser" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500" />
+            <label class="block text-slate-300 mb-1">Rol / Specialitate & Servicii:</label>
+            <input type="text" id="docSpecInput" placeholder="Ex: Demo Live AvanzCRM & Implementare e-Factura" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500" />
           </div>
         </div>
 
@@ -280,7 +451,7 @@
           </div>
           <div>
             <label class="block text-slate-300 mb-1">Cal.com Event Type ID (Opțional):</label>
-            <input type="text" id="docCalIdInput" placeholder="Ex: 123456" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
+            <input type="text" id="docCalIdInput" placeholder="Ex: 7816181" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
           </div>
         </div>
 
@@ -289,7 +460,7 @@
             Resetează Formular
           </button>
           <button type="submit" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition">
-            💾 Salvează Medic & Orar
+            💾 Salvează Specialist & Orar
           </button>
         </div>
       </form>
@@ -305,16 +476,15 @@
             📅 Conectare Cal.com (Open-Source) + Google Calendar
           </h3>
           <p class="text-xs text-slate-400 mt-0.5">
-            100% Gratuit • Verificare ore libere medici & creare programări directe în Google Calendar
+            100% Gratuit • Verificare ore libere & creare programări directe în Google Calendar
           </p>
         </div>
         <button onclick="toggleCalModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
       </div>
 
-      <!-- Ghid rapid 3 pași -->
       <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 space-y-1.5">
         <div class="font-semibold text-blue-400 mb-1">Cum obții cheia gratuită în 2 minute:</div>
-        <div>1. Creează cont gratuit pe <a href="https://app.cal.com" target="_blank" class="text-blue-400 underline">app.cal.com</a> (sau instalează instanța ta open-source) și conectează <strong>Google Calendar</strong> din meniul <em>Apps ➔ Google Calendar</em>.</div>
+        <div>1. Creează cont gratuit pe <a href="https://app.cal.com" target="_blank" class="text-blue-400 underline">app.cal.com</a> și conectează <strong>Google Calendar</strong> din meniul <em>Apps ➔ Google Calendar</em>.</div>
         <div>2. Mergi la <a href="https://app.cal.com/settings/developer/api-keys" target="_blank" class="text-blue-400 underline">Settings ➔ Developer ➔ API Keys</a> și generează o cheie (<code class="text-emerald-300">cal_live_...</code>).</div>
         <div>3. Lipește cheia mai jos — aplicația va detecta automat tipurile tale de programări (Event Types) și le va salva în <code class="text-amber-300">.env</code>!</div>
       </div>
@@ -380,30 +550,44 @@
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div>
           <h3 class="text-base font-bold text-white flex items-center gap-2">
-            💬 Conectare Telegram, WhatsApp Cloud API & Chatwoot
+            💬 Conectare Chatwoot (dev.avanz.ro), Telegram & WhatsApp Cloud API
           </h3>
           <p class="text-xs text-slate-400 mt-0.5">
-            Salvează cheile direct în <code>.env</code> și înregistrează automat Webhook-ul Telegram
+            Salvează cheile în <code>.env</code>, înregistrează automat Webhook-urile și sincronizează Inbox-urile Chatwoot
           </p>
         </div>
         <button onclick="toggleOmniModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
       </div>
 
       <form onsubmit="saveOmniConfig(event)" class="space-y-3 text-xs">
-        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-          <div class="font-semibold text-sky-400">1. Telegram Bot (Text + Mesaje Vocale în Română — 100% Gratuit)</div>
-          <div>
-            <label class="block text-slate-300 mb-1">TELEGRAM_BOT_TOKEN (de la @BotFather):</label>
-            <input type="password" id="tgBotTokenInput" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
+        <div class="p-3 rounded-xl bg-slate-950 border border-purple-800/60 space-y-2">
+          <div class="font-semibold text-purple-400">1. Chatwoot CRM (pentru dev.avanz.ro & Multi-Inbox)</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label class="block text-slate-300 mb-1">CHATWOOT_API_URL:</label>
+              <input type="text" id="cwApiUrlInput" placeholder="https://chat.avanz.ro sau https://app.chatwoot.com" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label class="block text-slate-300 mb-1">CHATWOOT_API_TOKEN:</label>
+              <input type="password" id="cwApiTokenInput" placeholder="Token din Profile Settings" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
+            </div>
           </div>
           <div>
-            <label class="block text-slate-300 mb-1">URL Public HTTPS al aplicației (pt. activare automată Webhook Telegram):</label>
-            <input type="text" id="publicBaseUrlInput" placeholder="Ex: https://numele-tau.hf.space sau https://xxxx.ngrok-free.app" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
+            <label class="block text-slate-300 mb-1">URL Public HTTPS al acestui server AI (pt. auto-înregistrare Webhook în Chatwoot & Telegram):</label>
+            <input type="text" id="publicBaseUrlInput" placeholder="Ex: https://ai.avanz.ro sau https://numele-tau.hf.space" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
           </div>
         </div>
 
         <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-          <div class="font-semibold text-emerald-400">2. Meta WhatsApp Cloud API (developers.facebook.com)</div>
+          <div class="font-semibold text-sky-400">2. Telegram Bot (Text + Mesaje Vocale în Română — 100% Gratuit)</div>
+          <div>
+            <label class="block text-slate-300 mb-1">TELEGRAM_BOT_TOKEN (de la @BotFather):</label>
+            <input type="password" id="tgBotTokenInput" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+          <div class="font-semibold text-emerald-400">3. Meta WhatsApp Cloud API (developers.facebook.com)</div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
               <label class="block text-slate-300 mb-1">WHATSAPP_PHONE_NUMBER_ID:</label>
@@ -420,20 +604,6 @@
           </div>
         </div>
 
-        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-          <div class="font-semibold text-purple-400">3. Chatwoot CRM (app.chatwoot.com sau Self-Hosted)</div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div>
-              <label class="block text-slate-300 mb-1">CHATWOOT_API_URL:</label>
-              <input type="text" id="cwApiUrlInput" placeholder="https://app.chatwoot.com" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
-            </div>
-            <div>
-              <label class="block text-slate-300 mb-1">CHATWOOT_API_TOKEN:</label>
-              <input type="password" id="cwApiTokenInput" placeholder="Token din Profile Settings" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
-            </div>
-          </div>
-        </div>
-
         <div id="omniConfigResult" class="hidden p-3 rounded-xl text-xs"></div>
 
         <div class="flex items-center justify-end gap-2 pt-2">
@@ -441,7 +611,7 @@
             Închide
           </button>
           <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold">
-            💾 Salvează Canale Omnichannel
+            💾 Salvează & Conectează
           </button>
         </div>
       </form>
@@ -454,19 +624,319 @@
     let audioChunks = [];
     let isRecording = false;
     let cachedDoctors = [];
+    let cachedInboxes = [];
+    let activeInboxProfile = null;
 
     window.addEventListener("DOMContentLoaded", () => {
       const origin = window.location.origin;
       document.getElementById("calWebhookUrlCode").textContent = `${origin}/api/webhooks/calcom`;
-      document.getElementById("healthUrlCode").textContent = `${origin}/api/health`;
       document.getElementById("waUrlCode").textContent = `${origin}/api/webhooks/whatsapp`;
       document.getElementById("tgUrlCode").textContent = `${origin}/api/webhooks/telegram`;
-      const embedEl = document.getElementById("embedWidgetCode");
-      if (embedEl) embedEl.textContent = `<script src="${origin}/widget.js"><\/script>`;
+      document.getElementById("cwUrlCode").textContent = `${origin}/api/webhooks/chatwoot`;
 
       checkSystemHealth();
       loadAppointments();
     });
+
+    function updateWidgetSnippet(origin, inboxId) {
+      const embedEl = document.getElementById("embedWidgetCode");
+      if (embedEl) {
+        embedEl.textContent = `<script src="${origin}/widget.js?inbox=${inboxId || "inbox-avanz-main"}"><\/script>`;
+      }
+    }
+
+    function populateInboxesUI(inboxes, defaultActive) {
+      cachedInboxes = inboxes || [];
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryInbox = urlParams.get("inbox");
+
+      if (!activeInboxProfile) {
+        if (queryInbox) {
+          activeInboxProfile = cachedInboxes.find(i => i.id === queryInbox || String(i.inbox_id) === queryInbox);
+        }
+        if (!activeInboxProfile) {
+          activeInboxProfile = defaultActive || cachedInboxes[0];
+        }
+      } else {
+        const refreshed = cachedInboxes.find(i => i.id === activeInboxProfile.id);
+        if (refreshed) activeInboxProfile = refreshed;
+      }
+
+      const selector = document.getElementById("activeInboxSelector");
+      selector.innerHTML = "";
+      cachedInboxes.forEach(inb => {
+        const opt = document.createElement("option");
+        opt.value = inb.id;
+        const cwBadge = inb.inbox_id ? `#${inb.inbox_id}` : "Auto";
+        opt.textContent = `📥 [${cwBadge}] ${inb.name}`;
+        selector.appendChild(opt);
+      });
+
+      if (activeInboxProfile) {
+        selector.value = activeInboxProfile.id;
+        applyActiveInboxToView(activeInboxProfile, false);
+      }
+    }
+
+    function switchActiveInbox(profileId) {
+      const found = cachedInboxes.find(i => i.id === profileId);
+      if (!found) return;
+      activeInboxProfile = found;
+      applyActiveInboxToView(found, true);
+    }
+
+    function applyActiveInboxToView(profile, resetChat = false) {
+      document.getElementById("clinicTitle").textContent = profile.name;
+      document.getElementById("activeDomainBadge").textContent = profile.domain || "dev.avanz.ro";
+      document.getElementById("activeInboxLabel").textContent = `${profile.name} (${profile.domain || "dev.avanz.ro"})`;
+      updateWidgetSnippet(window.location.origin, profile.id);
+
+      // Actualizăm cardul de sumar al Inbox-ului activ
+      const cardInfo = document.getElementById("activeInboxCardInfo");
+      if (cardInfo) {
+        cardInfo.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-purple-300">🎯 Inbox Activ: ${profile.name}</span>
+            <span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-200 font-mono text-[11px]">Chatwoot ID: ${profile.inbox_id || "Auto"} • ${profile.domain}</span>
+          </div>
+          <div class="text-slate-300 mt-1">
+            <span class="text-emerald-400 font-medium">👋 Bun venit:</span> „${profile.welcome_message}”
+          </div>
+          <div class="text-slate-400 text-[11px] mt-1">
+            <span class="text-slate-300 font-medium">🧠 Specific site:</span> ${profile.site_specificity}
+          </div>
+        `;
+      }
+
+      // Actualizăm butoanele de scenarii rapide (quick_prompts)
+      const qContainer = document.getElementById("quickPromptsContainer");
+      qContainer.innerHTML = `<span class="text-[11px] text-slate-400 mr-1">Întrebări rapide (${profile.domain}):</span>`;
+      const prompts = profile.quick_prompts && profile.quick_prompts.length
+        ? profile.quick_prompts
+        : ["Ce funcționalități oferiți?", "Ce ore libere aveți mâine pentru Demo Live?"];
+      prompts.forEach(p => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "text-xs px-2.5 py-1 rounded-full bg-slate-800 hover:bg-purple-600/30 hover:border-purple-500/50 border border-slate-700 text-slate-200 transition";
+        btn.textContent = `💬 ${p}`;
+        btn.onclick = () => sendQuickPrompt(p);
+        qContainer.appendChild(btn);
+      });
+
+      // Afișăm mesajul de întâmpinare personalizat în fereastra de chat
+      const chatContainer = document.getElementById("chatContainer");
+      if (resetChat || chatContainer.children.length <= 1) {
+        chatContainer.innerHTML = "";
+        appendMessage("assistant", profile.welcome_message);
+      }
+    }
+
+    function toggleInboxesModal() {
+      const modal = document.getElementById("inboxesModal");
+      if (modal.classList.contains("hidden")) {
+        renderInboxesManager();
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+      } else {
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+      }
+    }
+
+    function renderInboxesManager() {
+      const list = document.getElementById("inboxesManagerList");
+      list.innerHTML = "";
+      cachedInboxes.forEach(inb => {
+        const div = document.createElement("div");
+        div.className = "p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col gap-2 text-xs";
+        const defaultBadge = inb.is_default
+          ? `<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium">★ Default</span>`
+          : "";
+        const cwBadge = inb.inbox_id
+          ? `<span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 font-mono">Inbox #${inb.inbox_id}</span>`
+          : `<span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">Auto-Match</span>`;
+
+        div.innerHTML = `
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="font-bold text-white text-sm">📥 ${inb.name}</span>
+              <span class="px-2 py-0.5 rounded bg-blue-500/15 text-blue-300 border border-blue-500/30 font-mono">${inb.domain}</span>
+              ${cwBadge}
+              ${defaultBadge}
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button onclick="testInboxInChat('${inb.id}')" class="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/35 text-emerald-300 border border-emerald-500/30">
+                ▶️ Testează în Chat
+              </button>
+              <button onclick="editInboxProfile('${inb.id}')" class="px-2.5 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600/35 text-blue-300 border border-blue-500/30">
+                ✏️ Editează Mesaje
+              </button>
+              <button onclick="removeInboxProfile('${inb.id}')" class="px-2.5 py-1 rounded-lg bg-rose-600/15 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30">
+                🗑️
+              </button>
+            </div>
+          </div>
+          <div class="text-slate-300 bg-slate-900/90 p-2.5 rounded-lg border border-slate-800/80">
+            <span class="text-emerald-400 font-semibold">Mesaj Bun Venit:</span> „${inb.welcome_message}”
+          </div>
+          <div class="text-slate-400 text-[11px]">
+            <strong class="text-slate-300">Specificul Site-ului:</strong> ${inb.site_specificity}
+          </div>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function testInboxInChat(profileId) {
+      switchActiveInbox(profileId);
+      toggleInboxesModal();
+    }
+
+    function editInboxProfile(profileId) {
+      const inb = cachedInboxes.find(i => i.id === profileId);
+      if (!inb) return;
+      document.getElementById("inboxFormTitle").textContent = `✏️ Editare Mesaje Personalizate: ${inb.name}`;
+      document.getElementById("inboxProfileIdInput").value = inb.id;
+      document.getElementById("inboxNameInput").value = inb.name;
+      document.getElementById("inboxDomainInput").value = inb.domain || "dev.avanz.ro";
+      document.getElementById("inboxCwIdInput").value = inb.inbox_id || "";
+      document.getElementById("inboxSpecificityInput").value = inb.site_specificity || "";
+      document.getElementById("inboxWelcomeInput").value = inb.welcome_message || "";
+      document.getElementById("inboxHandoffInput").value = inb.handoff_message || "";
+      document.getElementById("inboxPromptsInput").value = (inb.quick_prompts || []).join(" | ");
+      document.getElementById("inboxDefaultCheckbox").checked = Boolean(inb.is_default);
+    }
+
+    function clearInboxForm() {
+      document.getElementById("inboxFormTitle").textContent = "➕ Adaugă Inbox Nou în Chatwoot";
+      document.getElementById("inboxProfileIdInput").value = "";
+      document.getElementById("inboxNameInput").value = "";
+      document.getElementById("inboxDomainInput").value = "dev.avanz.ro";
+      document.getElementById("inboxCwIdInput").value = "";
+      document.getElementById("inboxSpecificityInput").value = "";
+      document.getElementById("inboxWelcomeInput").value = "";
+      document.getElementById("inboxHandoffInput").value = "";
+      document.getElementById("inboxPromptsInput").value = "";
+      document.getElementById("inboxDefaultCheckbox").checked = false;
+    }
+
+    async function generateInboxWithAI() {
+      const btn = document.getElementById("genInboxAiBtn");
+      const name = document.getElementById("inboxNameInput").value.trim() || "Modul Nou dev.avanz.ro";
+      const domain = document.getElementById("inboxDomainInput").value.trim() || "dev.avanz.ro";
+      const spec = document.getElementById("inboxSpecificityInput").value.trim();
+      const cwId = document.getElementById("inboxCwIdInput").value.trim();
+
+      btn.disabled = true;
+      btn.textContent = "⏳ Generez mesajele personalizate...";
+      try {
+        const res = await fetch("/api/chatwoot/inboxes/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: name,
+            domain: domain,
+            site_specificity: spec,
+            inbox_id: cwId
+          })
+        });
+        const data = await res.json();
+        if (data.template) {
+          const t = data.template;
+          document.getElementById("inboxNameInput").value = t.name;
+          document.getElementById("inboxDomainInput").value = t.domain || domain;
+          document.getElementById("inboxSpecificityInput").value = t.site_specificity || "";
+          document.getElementById("inboxWelcomeInput").value = t.welcome_message || "";
+          document.getElementById("inboxHandoffInput").value = t.handoff_message || "";
+          document.getElementById("inboxPromptsInput").value = (t.quick_prompts || []).join(" | ");
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "✨ Generează Automat Mesajele după Specificul Site-ului";
+      }
+    }
+
+    async function saveInboxForm(e) {
+      e.preventDefault();
+      const id = document.getElementById("inboxProfileIdInput").value.trim();
+      const name = document.getElementById("inboxNameInput").value.trim();
+      const domain = document.getElementById("inboxDomainInput").value.trim();
+      const inbox_id = document.getElementById("inboxCwIdInput").value.trim();
+      const site_specificity = document.getElementById("inboxSpecificityInput").value.trim();
+      const welcome_message = document.getElementById("inboxWelcomeInput").value.trim();
+      const handoff_message = document.getElementById("inboxHandoffInput").value.trim();
+      const rawPrompts = document.getElementById("inboxPromptsInput").value
+        .split("|")
+        .map(s => s.trim())
+        .filter(Boolean);
+      const is_default = document.getElementById("inboxDefaultCheckbox").checked;
+
+      const res = await fetch("/api/chatwoot/inboxes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          inbox_id,
+          name,
+          domain,
+          welcome_message,
+          handoff_message,
+          site_specificity,
+          is_default,
+          quick_prompts: rawPrompts
+        })
+      });
+      const data = await res.json();
+      if (data.profile) {
+        activeInboxProfile = data.profile;
+      }
+      populateInboxesUI(data.inboxes || [], data.profile);
+      renderInboxesManager();
+      clearInboxForm();
+
+      const notice = document.getElementById("inboxSyncNotice");
+      notice.classList.remove("hidden");
+      notice.className = "p-3 rounded-xl text-xs bg-emerald-950/90 border border-emerald-700 text-emerald-200";
+      notice.innerHTML = `✅ Profilul pentru <strong>${name} (${domain})</strong> a fost salvat în <code>inboxes.json</code>!` +
+        (data.chatwoot_greeting_updated ? " Mesajul de întâmpinare a fost actualizat direct și în Chatwoot!" : "");
+    }
+
+    async function removeInboxProfile(profileId) {
+      const res = await fetch(`/api/chatwoot/inboxes/${encodeURIComponent(profileId)}`, { method: "DELETE" });
+      const data = await res.json();
+      activeInboxProfile = null;
+      populateInboxesUI(data.inboxes || []);
+      renderInboxesManager();
+    }
+
+    async function syncChatwootInboxes() {
+      const btn = document.getElementById("syncCwInboxesBtn");
+      const notice = document.getElementById("inboxSyncNotice");
+      btn.disabled = true;
+      btn.textContent = "⏳ Sincronizez...";
+      try {
+        const res = await fetch("/api/chatwoot/inboxes/sync", { method: "POST" });
+        const data = await res.json();
+        notice.classList.remove("hidden");
+        if (data.synced) {
+          notice.className = "p-3 rounded-xl text-xs bg-emerald-950/90 border border-emerald-700 text-emerald-200";
+        } else {
+          notice.className = "p-3 rounded-xl text-xs bg-amber-950/90 border border-amber-700 text-amber-200";
+        }
+        notice.textContent = data.message;
+        if (data.inboxes) {
+          populateInboxesUI(data.inboxes);
+          renderInboxesManager();
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "🔄 Sincronizează din Chatwoot";
+      }
+    }
 
     function toggleOmniModal() {
       const modal = document.getElementById("omniModal");
@@ -499,10 +969,16 @@
       resBox.classList.remove("hidden");
       resBox.className = "p-3 rounded-xl text-xs bg-emerald-950/90 border border-emerald-700 text-emerald-200";
       let msg = "✅ Setările Omnichannel au fost salvate în <code>.env</code>!";
+      if (data.chatwoot_status && data.chatwoot_status.connected) {
+        msg += `<br/>🚀 Conectat la Chatwoot (${data.chatwoot_status.profile?.name || "Admin"}) & sincronizat Inbox-urile!`;
+      }
       if (data.telegram_webhook && data.telegram_webhook.ok) {
         msg += "<br/>🚀 Webhook-ul Telegram a fost activat cu succes!";
       }
       resBox.innerHTML = msg;
+      if (data.inboxes) {
+        populateInboxesUI(data.inboxes);
+      }
     }
 
     function toggleDoctorsModal() {
@@ -521,7 +997,7 @@
       cachedDoctors = doctors || [];
       const select = document.getElementById("doctorFilter");
       const currentVal = select.value;
-      select.innerHTML = `<option value="">👨‍⚕️ Toți medicii clinicii (${cachedDoctors.length})</option>`;
+      select.innerHTML = `<option value="">👨‍⚕️ Toți specialiștii (${cachedDoctors.length})</option>`;
       cachedDoctors.forEach(doc => {
         const opt = document.createElement("option");
         opt.value = doc.name;
@@ -566,7 +1042,7 @@
     function editDoctor(docId) {
       const doc = cachedDoctors.find(d => d.id === docId);
       if (!doc) return;
-      document.getElementById("docFormTitle").textContent = `✏️ Editare Medic & Calendar: ${doc.name}`;
+      document.getElementById("docFormTitle").textContent = `✏️ Editare Specialist & Calendar: ${doc.name}`;
       document.getElementById("docIdInput").value = doc.id;
       document.getElementById("docNameInput").value = doc.name;
       document.getElementById("docSpecInput").value = doc.specialty;
@@ -575,7 +1051,7 @@
     }
 
     function clearDoctorForm() {
-      document.getElementById("docFormTitle").textContent = "➕ Adaugă Medic Nou în Clinică";
+      document.getElementById("docFormTitle").textContent = "➕ Adaugă Specialist Nou";
       document.getElementById("docIdInput").value = "";
       document.getElementById("docNameInput").value = "";
       document.getElementById("docSpecInput").value = "";
@@ -662,7 +1138,7 @@
           resBox.innerHTML = `✅ <strong>Conectat cu succes la Cal.com!</strong><br/>Event Types găsite: ${names}. Configurația a fost salvată în <code>.env</code>.`;
         } else {
           resBox.className = "p-3 rounded-xl text-xs bg-amber-950/90 border border-amber-700 text-amber-200";
-          resBox.innerHTML = `⚠️ Cheia a fost salvată în <code>.env</code>, dar nu am găsit Event Types active (verifică în Cal.com să ai cel puțin un Event Type creat sau introdu manual ID-ul).`;
+          resBox.innerHTML = `⚠️ Cheia a fost salvată în <code>.env</code>, dar nu am găsit Event Types active.`;
         }
 
         await checkSystemHealth();
@@ -694,8 +1170,8 @@
       try {
         const res = await fetch("/api/health");
         const data = await res.json();
-        document.getElementById("clinicTitle").textContent = data.clinic_name;
         populateDoctorsDropdown(data.doctors || []);
+        populateInboxesUI(data.inboxes || [], data.active_inbox);
 
         const dateInput = document.getElementById("dateFilter");
         if (!dateInput.value && data.tomorrow_date) {
@@ -764,7 +1240,9 @@
         btn.title = "Click pentru a cere agentului AI programare la această oră";
         btn.onclick = () => {
           const docMention = docVal ? ` la ${docVal}` : "";
-          sendQuickPrompt(`Vreau să mă programez pe data de ${dateStr} la ora ${slot}${docMention} pe numele Popescu Vlad, telefon 0722999888`);
+          const isAvanz = activeInboxProfile && (activeInboxProfile.domain || "").includes("avanz");
+          const srvMention = isAvanz ? " pentru un Demo Live AvanzCRM" : "";
+          sendQuickPrompt(`Vreau să mă programez pe data de ${dateStr} la ora ${slot}${docMention}${srvMention}, pe numele Popescu Vlad, telefon 0722999888`);
         };
         container.appendChild(btn);
       });
@@ -789,7 +1267,7 @@
                 <span class="text-[10px] font-mono text-slate-400">(${appt.id})</span>
               </div>
               <div class="text-xs text-slate-400 mt-1">
-                🦷 ${appt.service} • 👨‍⚕️ <span class="text-slate-300">${appt.doctor || "Dr. Elena Dumitrescu"}</span> • 📞 ${appt.phone}
+                📌 ${appt.service} • 👤 <span class="text-slate-300">${appt.doctor || "Consultant Alocat"}</span> • 📞 ${appt.phone}
               </div>
             </div>
             <button onclick="cancelBooking('${appt.id}')" class="text-[11px] px-2 py-0.5 rounded bg-rose-500/10 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 transition" title="Anulează programarea">
@@ -877,6 +1355,7 @@
       appendMessage("user", text);
       const voice = document.getElementById("voiceSelector").value;
       const generateAudio = document.getElementById("autoSpeakToggle").checked;
+      const inboxProfileId = activeInboxProfile ? activeInboxProfile.id : "";
 
       try {
         const res = await fetch("/api/chat", {
@@ -886,7 +1365,9 @@
             session_id: sessionId,
             message: text,
             voice: voice,
-            generate_audio: generateAudio
+            generate_audio: generateAudio,
+            inbox_profile_id: inboxProfileId,
+            channel: activeInboxProfile ? `Chat (${activeInboxProfile.name})` : "Web Voice/Chat"
           })
         });
         const data = await res.json();
@@ -946,6 +1427,9 @@
       formData.append("audio", audioBlob, "voice.webm");
       formData.append("session_id", sessionId);
       formData.append("voice", voice);
+      if (activeInboxProfile) {
+        formData.append("inbox_profile_id", activeInboxProfile.id);
+      }
 
       try {
         const res = await fetch("/api/voice-turn", {
@@ -969,7 +1453,10 @@
     async function resetConversation() {
       await fetch(`/api/reset-session?session_id=${sessionId}`, { method: "POST" });
       document.getElementById("chatContainer").innerHTML = "";
-      appendMessage("assistant", "Conversația a fost resetată. Cu ce vă pot ajuta astăzi?");
+      const welcome = activeInboxProfile
+        ? activeInboxProfile.welcome_message
+        : "Conversația a fost resetată. Cu ce vă pot ajuta astăzi?";
+      appendMessage("assistant", welcome);
     }
   </script>
 </body>

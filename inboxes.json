@@ -1,0 +1,50 @@
+[
+  {
+    "id": "inbox-avanz-main",
+    "inbox_id": "1",
+    "name": "AvanzCRM — Consultanță & Demo (dev.avanz.ro)",
+    "domain": "dev.avanz.ro",
+    "channel_type": "Channel::WebWidget",
+    "is_default": true,
+    "welcome_message": "Bună ziua! 👋 Bine ați venit pe dev.avanz.ro! Sunt consultantul virtual AI al platformei AvanzCRM (Enterprise CRM & ERP). Vă pot ajuta cu detalii despre Catalog & SKU, Trasee GPS pentru agenți, integrarea e-Factura ANAF & SmartBill sau programarea unui Demo Live. Cu ce vă pot ajuta astăzi?",
+    "handoff_message": "Am înțeles! Vă transfer imediat către un consultant de implementare AvanzCRM. Un specialist din echipa noastră va prelua această conversație în câteva momente.",
+    "site_specificity": "Platforma AvanzCRM (dev.avanz.ro / avanz.ro) este un sistem Enterprise CRM & ERP din România adaptat pentru distribuție, agricultură, tehnic, zootehnie și servicii profesionale. Funcționalități principale: 1) Catalog și categorii personalizabile pe articole, stocuri și coduri SKU; 2) Trasee de teren, vizite clienți și pontaj GPS în timp real pentru agenții de vânzări; 3) Integrare nativă e-Factura (SPV ANAF) și SmartBill pentru facturare automată; 4) Aprobare de sarcini (workflows), gestiune multi-tenant și rapoarte manageriale. Obiectivul asistentului AI este să răspundă clar la întrebările despre modulele AvanzCRM, să ofere suport pe mediul dev.avanz.ro și să programeze sesiuni Demo Live sau Onboarding Tehnic în calendarul Cal.com.",
+    "quick_prompts": [
+      "Ce module include platforma AvanzCRM pe dev.avanz.ro?",
+      "Cum funcționează integrarea e-Factura ANAF și pontajul GPS pentru agenți?",
+      "Vreau să programez un Demo Live AvanzCRM mâine la ora 15:00"
+    ]
+  },
+  {
+    "id": "inbox-avanz-support",
+    "inbox_id": "2",
+    "name": "AvanzCRM — Suport Tehnic & QA (dev.avanz.ro)",
+    "domain": "dev.avanz.ro",
+    "channel_type": "Channel::WebWidget",
+    "is_default": false,
+    "welcome_message": "Salut! 🛠️ Ai deschis canalul de Suport Tehnic & QA pentru mediul dev.avanz.ro. Spune-mi ce modul testezi (API, e-Factura SPV, SmartBill, Trasee GPS sau Catalog SKU), ce eroare întâmpini sau dacă dorești să programezi o sesiune tehnică cu un inginer DevOps/ERP!",
+    "handoff_message": "Am înregistrat tichetul tău tehnic pentru dev.avanz.ro! Transfer conversația acum către un inginer din echipa de suport AvanzCRM.",
+    "site_specificity": "Acest inbox este dedicat Suportului Tehnic, QA și testării pe mediul de dezvoltare dev.avanz.ro. Asistentul AI ajută utilizatorii și testerii cu: 1) Diagnosticarea sincronizării e-Factura ANAF SPV și SmartBill API; 2) Verificarea permisiunilor multi-tenant și a rolurilor de aprobare sarcini; 3) Configurarea nomenclatoarelor SKU și a rutelor GPS pentru agenți; 4) Preluarea rapoartelor de bug-uri și programarea unei sesiuni de debugging sau onboarding tehnic.",
+    "quick_prompts": [
+      "Am o întrebare despre sincronizarea e-Factura și SmartBill în dev.avanz.ro",
+      "Cum configurez rolurile multi-tenant și aprobarea de sarcini?",
+      "Vreau să vorbesc cu un operator uman de la suport tehnic"
+    ]
+  },
+  {
+    "id": "inbox-demo-smile",
+    "inbox_id": "3",
+    "name": "Clinica Stomatologică Demo Smile",
+    "domain": "demosmile.ro",
+    "channel_type": "Channel::WebWidget",
+    "is_default": false,
+    "welcome_message": "Bună ziua! 😊 Sunt recepționerul virtual AI al Clinicii Stomatologice Demo Smile. Vă pot ajuta pe loc cu verificarea orelor libere ale medicilor în Cal.com, crearea unei programări sau informații despre tarife și plata în rate!",
+    "handoff_message": "Am înțeles! Vă transfer imediat către o colegă de la recepția clinicii. Un operator uman va prelua conversația în câteva momente.",
+    "site_specificity": "Clinică stomatologică modernă (Stomatologie generală, Implantologie, Ortodonție, Endodonție la microscop). Consultație primară 150 RON, Detartraj + AirFlow 350 RON, Implant dentar de la 2.500 RON. Plata în până la 12 rate fără dobândă.",
+    "quick_prompts": [
+      "Ce ore libere aveți mâine pentru o consultație?",
+      "Cât costă un detartraj și o consultație?",
+      "Vreau să mă programez mâine la ora 16:30"
+    ]
+  }
+]
