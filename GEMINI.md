@@ -13,10 +13,10 @@ Obiectivul arhitecturii este livrarea unui **Recepționer AI 24/7 (Voce + Text)*
 
 ```text
 [Canale Pacienți / Clienți]
-  ├── Widget Web Flotant (/widget.js) — Voce WebRTC + Chat
+  ├── Widget Web Flotant (/widget.js) — Voce WebRTC + Chat (100% Gratuit, fără dependențe externe)
   ├── Telegram Bot (@BotFather) — Text + Note Vocale în Română
   ├── Meta WhatsApp Cloud API — Mesaje directe (0 € Service Tier)
-  └── Chatwoot Community Edition (Self-Hosted Docker) — Inbox Unificat + Human Handoff
+  └── Chatwoot Community Edition (Self-Hosted Docker) — Inbox Unificat (Web, FB, IG, WA, TG) + Human Handoff
           │
           ▼
 [Backend Principal: FastAPI Python 3.11+ (Port 7860)]
@@ -57,7 +57,7 @@ receptioner_ai_24_7/
 ├── doctors.json                   # Catalog persistent medici/specialiști, orare și ID-uri Cal.com
 ├── Dockerfile                     # Container principal FastAPI (non-root user 1000, port 7860, ffmpeg)
 ├── docker-compose.chatwoot.yml    # Stack complet local/VPS (FastAPI + Chatwoot CE + Postgres + Redis)
-├── render.yaml                    # Blueprint Multi-Service pe același cont Render
+├── render.yaml                    # Blueprint Multi-Service pe același cont Render (receptioner-ai-24-7-stack)
 ├── requirements.txt               # Dependențe Python minimale și rapide
 ├── .env.example                   # Șablon variabile de mediu (fără chei secrete!)
 ├── start_local.ps1                # Script PowerShell pentru pornire instantanee cu `uv`
@@ -80,14 +80,15 @@ receptioner_ai_24_7/
 - **Auto-Discovery pentru `CALCOM_EVENT_TYPE_ID`:** Nu obliga utilizatorul să caute manual ID-ul numeric al evenimentului în Cal.com. Când utilizatorul furnizează `CALCOM_API_KEY` (`cal_live_...`), interoghează automat `GET /v1/event-types?apiKey=...` (și fallback `GET /v2/event-types` cu header `Authorization: Bearer ...`) și setează automat primul Event Type activ.
 - **Alocare pe Medici / Specialiști (`doctors.json`):**
   - Fiecare specialist are propriul obiect în `doctors.json` cu `name`, `specialty`, `keywords`, `days`, `default_slots` și opțional propriul `calcom_event_type_id` (pentru sincronizare cu propriul său Google Calendar).
-  - Când se adaugă sau se modifică un medic prin `POST /api/doctors`, golește cache-ul de sesiuni (`receptionist_agent.sessions.clear()`) pentru ca promptul de sistem al AI-ului să includă imediat noul medic.
+  - Când se adaugă sau se modifică un medic prin `POST /api/doctors`, golește cache-ul de sesiuni (`receptionist_agent.sessions.clear()`) și sincronizează secțiunea `medici` din `storage_service.py` pentru ca AI-ul să cunoască imediat noul medic.
 
 ### 3.3. Rularea Chatwoot Community Edition (Open-Source Docker) pe Render Free & HF Spaces
-- **De ce Chatwoot Community Edition (Self-Hosted):** Varianta găzduită `app.chatwoot.com` restricționează *API Access Tokens* și *Agent Bots* pe planul gratuit. Imaginea oficială Docker `chatwoot/chatwoot:latest` (Community Edition) are **toate funcțiile API 100% deblocate și gratuite**.
-- **3 Reguli Obligatorii pentru rularea `chatwoot/chatwoot:latest` pe Render (`render.yaml` & `chatwoot_hf_space/Dockerfile`):**
-  1. **Evită `dockerCommand` cu comenzi înlănțuite (`sh -c "cmd1 && cmd2"`) pe `runtime: image` în Render:** Entrypoint-ul `docker/entrypoints/rails.sh` din imaginea Chatwoot face `exec "$@"` și eșuează cu `Exited with status 127`. Folosește întotdeauna `runtime: docker` cu un script `/app/start_render.sh` ca `ENTRYPOINT` în `Dockerfile`.
+- **De ce Chatwoot Community Edition (Self-Hosted):** Varianta găzduită `app.chatwoot.com` restricționează *API Access Tokens* și *Agent Bots* pe planul gratuit. Imaginea oficială Docker `chatwoot/chatwoot:latest` (Community Edition) are **toate funcțiile API, Inboxes, Automation Rules, Agent Bots și Dashboard Apps 100% deblocate și gratuite**.
+- **4 Reguli Obligatorii pentru rularea `chatwoot/chatwoot:latest` pe Render Free (`render.yaml` & `chatwoot_hf_space/Dockerfile`):**
+  1. **Evită `dockerCommand` cu comenzi înlănțuite (`sh -c "cmd1 && cmd2"`) pe `runtime: image` în Render:** Entrypoint-ul `docker/entrypoints/rails.sh` din imaginea Chatwoot face `exec "$@"` și eșuează cu `Exited with status 127`. Folosește întotdeauna `runtime: docker` cu un script `/app/start_render.sh` ca `ENTRYPOINT` în `chatwoot_hf_space/Dockerfile`.
   2. **Setează explicit `POSTGRES_PORT=5432`:** Utilitarul `pg_isready -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USERNAME` eșuează cu `too many command-line arguments (first is "chatwoot")` dacă `POSTGRES_PORT` este gol!
-  3. **Optimizări de Memorie RAM pentru Render Free (512 MB RAM):** Setează variabilele de mediu pentru Ruby Garbage Collector și jemalloc ca să menții consumul sub ~380 MB RAM:
+  3. **Execuție In-Process (`:async`) pentru Webhooks & Jobs fără container Sidekiq separat:** În mod implicit, Chatwoot pune webhook-urile (`WebhookJob`) în coada Sidekiq (care ar necesita un al doilea container de 512 MB RAM). În `chatwoot_hf_space/Dockerfile` este injectat automat initializer-ul `/app/config/initializers/zz_render_free_async.rb` care setează `Rails.application.config.active_job.queue_adapter = :async` atunci când `USE_IN_PROCESS_ASYNC_JOBS=true`, executând toate webhook-urile instantaneu în același proces Puma, cu **0 MB RAM suplimentar**!
+  4. **Optimizări de Memorie RAM pentru Render Free (512 MB RAM):** Setează variabilele de mediu pentru Ruby Garbage Collector și jemalloc ca să menții consumul sub ~380 MB RAM:
      ```yaml
      WEB_CONCURRENCY: "0"
      RAILS_MAX_THREADS: "3"
@@ -98,12 +99,17 @@ receptioner_ai_24_7/
      ```
 - **Alternativă Gratuită fără Chatwoot:** Ruta nativă `GET /widget.js` din `app/main.py` generează o bulă flotantă de Chat + Voce AI care poate fi pusă pe orice site cu `<script src="https://.../widget.js"></script>`, fără niciun serviciu extern!
 
-### 3.4. Protecție Anti-Loop & Human Handoff în Chatwoot (`chatwoot_service.py`)
-- Răspunde **doar** când `message_type == "incoming"`, `private == False` și `sender.type == "contact"`. Ignoră mesajele trimise de `user` sau `agent_bot` pentru a preveni buclele infinite!
-- Dacă pacientul scrie cuvinte precum `operator`, `om real`, `recepționeră`, `transfer`, apelează automat:
+### 3.4. Protecție Anti-Loop, Human Handoff & Integrări în Chatwoot CE (`chatwoot_service.py`)
+- **Anti-Loop:** Răspunde **doar** când `message_type == "incoming"`, `private == False` și `sender.type == "contact"`. Ignoră mesajele trimise de `user` sau `agent_bot` pentru a preveni buclele infinite!
+- **Human Handoff Automat:** Dacă pacientul scrie cuvinte precum `operator`, `om real`, `recepționeră`, `transfer`, apelează automat:
   1. Mesaj public de confirmare a transferului.
   2. Notă internă privată (`private: True`) cu rezumatul cererii.
   3. `POST /api/v1/accounts/{account_id}/conversations/{conversation_id}/toggle_status` cu `{"status": "open"}`.
+- **Auto-înregistrare Webhook:** Ruta `POST /api/omnichannel/configure` verifică conexiunea la Chatwoot CE (`/api/v1/profile`) și înregistrează automat webhook-ul `/api/webhooks/chatwoot` în contul Chatwoot CE.
+- **Integrări disponibile în Chatwoot CE:**
+  - *Inboxes:* Website Live Chat, Meta WhatsApp Cloud API, Facebook Messenger, Instagram DM, Telegram Bot, Email (IMAP/SMTP), SMS.
+  - *Agent Bots & Webhooks:* Trimite evenimentele `message_created` către `https://<URL-RECEPTIONER-AI>/api/webhooks/chatwoot`.
+  - *Dashboard Apps:* Permite încorporarea interfeței Recepționerului AI sau a calendarului Cal.com direct ca tab în fereastra de conversație a operatorului din Chatwoot.
 
 ---
 
@@ -111,13 +117,26 @@ receptioner_ai_24_7/
 
 Agentul AI are definite 4 unelte principale în `app/services/llm_agent.py`:
 1. **`check_availability(date, doctor, service)`** — Verifică intervalele libere în Cal.com / Google Calendar și `doctors.json`.
-2. **`book_appointment(patient_name, phone, date, time, service, doctor)`** — Creează programarea în Cal.com + Google Calendar și returnează codul programării (`CAL-...` sau `BK-...`) și linkul Google Calendar.
+2. **`book_appointment(patient_name, phone, date, time, service, doctor)`** — Creează programarea în Cal.com + Google Calendar și returnează codul programării (`CAL-...` sau `BK-...`) și linkul Google Calendar (`gcal_url`).
 3. **`cancel_appointment(booking_id_or_name, reason)`** — Anulează o programare activă din Cal.com și din calendarul local.
-4. **`search_clinic_info(query)`** — Caută tarife, servicii, program, adresă, plata în rate și lista medicilor activi.
+4. **`search_clinic_info(query)`** — Caută tarife, servicii, program, adresă, plata în rate și lista medicilor activi (sincronizată dinamic cu `doctors.json`).
 
 ---
 
-## 5. 🚀 Cum Adaptezi Acest Proiect pentru un Client Nou (în 5 Minute)
+## 5. 📌 Starea Curentă a Proiectului (Checklist la Revenire)
+
+- [x] Repository GitHub creat și sincronizat complet: `https://github.com/dl-bit/receptioner-ai-24-7` (branch `main`).
+- [x] Cheia `GROQ_API_KEY` configurată local în `.env` (protejată prin `.gitignore`) cu modelul `openai/gpt-oss-120b` și `whisper-large-v3-turbo`.
+- [x] Integrare completă **Cal.com API (v1 & v2) + Google Calendar** + administrare dinamică medici & orare în `doctors.json` și în UI (`👨‍⚕️ Medici & Orare`).
+- [x] Integrare completă **Telegram Bot (Text + Voce)**, **WhatsApp Cloud API**, **Widget Web Flotant (`/widget.js`)** și **Chatwoot Community Edition Docker**.
+- [x] Blueprint Render (`render.yaml` -> `receptioner-ai-24-7-stack`) și `chatwoot_hf_space/Dockerfile` optimizate cu `POSTGRES_PORT=5432`, Ruby GC memory tuning și `USE_IN_PROCESS_ASYNC_JOBS=true`.
+- [ ] **Pași următori la revenire (opțional):**
+  1. Pornire rapidă server local: `.\start_local.ps1` (disponibil la `http://localhost:7860`).
+  2. Adăugarea cheii `CALCOM_API_KEY` (din contul gratuit Cal.com sincronizat cu Google Calendar) și/sau a token-urilor din Chatwoot CE / Telegram în fereastra **⚙️ Cal.com API** și **💬 Configurare Canale**.
+
+---
+
+## 6. 🚀 Cum Adaptezi Acest Proiect pentru un Client Nou (în 5 Minute)
 
 1. **Schimbă numele și domeniul afacerii:**
    - În `.env`: setează `CLINIC_NAME=Numele Afacerii Clientului`.
@@ -132,4 +151,3 @@ Agentul AI are definite 4 unelte principale în `app/services/llm_agent.py`:
    ```powershell
    uv run --with-requirements requirements.txt python test_smoke.py
    ```
-
